@@ -21,7 +21,7 @@
 		"lineWidth": 120
 	},
 	"files": {
-		"includes": ["packages/*/src/**/*.ts", "packages/*/test/**/*.ts"]
+		"includes": ["packages/*/src/**/*.ts", "packages/*/test/**/*.ts", "scripts/*.js"]
 	},
 	"vcs": {
 		"enabled": true,
