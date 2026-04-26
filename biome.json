@@ -1,0 +1,31 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.4.13/schema.json",
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": true,
+			"style": {
+				"noNonNullAssertion": "off",
+				"useConst": "error",
+				"useNodejsImportProtocol": "off"
+			},
+			"suspicious": {
+				"noExplicitAny": "off",
+				"noEmptyInterface": "off"
+			}
+		}
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab",
+		"lineWidth": 120
+	},
+	"files": {
+		"includes": ["packages/*/src/**/*.ts", "packages/*/test/**/*.ts"]
+	},
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	}
+}

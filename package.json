@@ -1,0 +1,20 @@
+{
+	"name": "pi-extensions",
+	"private": true,
+	"type": "module",
+	"workspaces": ["packages/*"],
+	"scripts": {
+		"check": "biome check",
+		"typecheck": "tsc --build",
+		"test": "vitest run",
+		"check:all": "npm run typecheck && npm run check && npm run test"
+	},
+	"devDependencies": {
+		"typescript": "^5.8.3",
+		"@biomejs/biome": "^2.0.0",
+		"vitest": "^3.1.0"
+	},
+	"engines": {
+		"node": ">=20.0.0"
+	}
+}
