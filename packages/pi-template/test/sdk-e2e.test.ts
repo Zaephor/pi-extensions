@@ -5,12 +5,12 @@
  * This proves the extension works end-to-end with pi's real runtime,
  * not just with recording mocks.
  */
-import { describe, expect, it, beforeAll, afterAll } from "vitest";
-import { createAgentSession, DefaultResourceLoader, SessionManager } from "@mariozechner/pi-coding-agent";
-import { fileURLToPath } from "node:url";
-import path from "node:path";
-import os from "node:os";
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { createAgentSession, DefaultResourceLoader, SessionManager } from "@mariozechner/pi-coding-agent";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,7 +20,7 @@ const extensionPath = path.resolve(__dirname, "..", "src", "index.ts");
 
 let tempDir: string;
 let extensionsResult: Awaited<ReturnType<typeof createAgentSession>>["extensionsResult"];
-let modelFallbackMessage: string | undefined;
+let _modelFallbackMessage: string | undefined;
 
 beforeAll(async () => {
 	tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-template-e2e-"));
@@ -45,7 +45,7 @@ beforeAll(async () => {
 	});
 
 	extensionsResult = result.extensionsResult;
-	modelFallbackMessage = result.modelFallbackMessage;
+	_modelFallbackMessage = result.modelFallbackMessage;
 });
 
 afterAll(() => {
