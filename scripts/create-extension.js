@@ -854,7 +854,7 @@ function updateReleaseManifest(name) {
 	const manifestPath = resolve(rootDir, ".release-please-manifest.json");
 	const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
 	manifest[`packages/${name}`] = "0.1.0";
-	writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+	writeFileSync(manifestPath, `${JSON.stringify(manifest, null, "\t")}\n`);
 	console.log(`Updated .release-please-manifest.json with packages/${name}`);
 }
 
