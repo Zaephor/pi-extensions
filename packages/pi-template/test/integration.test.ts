@@ -7,8 +7,9 @@
  * pi packages, the factory initializes correctly, and all registrations
  * land in the right data structures.
  */
-import { describe, expect, it } from "vitest";
+
 import type { ExtensionAPI, ExtensionHandler, ToolDefinition } from "@mariozechner/pi-coding-agent";
+import { describe, expect, it } from "vitest";
 
 /**
  * Create a recording mock that stores registrations in Maps,
@@ -16,7 +17,10 @@ import type { ExtensionAPI, ExtensionHandler, ToolDefinition } from "@mariozechn
  */
 function createRecordingMock() {
 	const tools = new Map<string, ToolDefinition>();
-	const commands = new Map<string, { description?: string; handler: (args: string, ctx: any) => Promise<void> | void }>();
+	const commands = new Map<
+		string,
+		{ description?: string; handler: (args: string, ctx: any) => Promise<void> | void }
+	>();
 	const handlers = new Map<string, Function[]>();
 
 	const api = {
@@ -217,7 +221,13 @@ describe("pi-template integration — full extension loading", () => {
 			mod.default(api);
 
 			const tool = tools.get("hello")!;
-			const result = await tool.execute("tc-roundtrip", { name: "End-to-End" }, undefined, undefined, testContext() as any);
+			const result = await tool.execute(
+				"tc-roundtrip",
+				{ name: "End-to-End" },
+				undefined,
+				undefined,
+				testContext() as any,
+			);
 
 			expect(result.content[0].text).toBe("Hello, End-to-End!");
 		});

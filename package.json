@@ -2,16 +2,22 @@
 	"name": "pi-extensions",
 	"private": true,
 	"type": "module",
-	"workspaces": ["packages/*"],
+	"workspaces": [
+		"packages/*"
+	],
 	"scripts": {
 		"check": "biome check",
 		"typecheck": "tsc --build",
 		"test": "vitest run",
-		"check:all": "npm run typecheck && npm run check && npm run test"
+		"check:all": "npm run typecheck && npm run check && npm run test",
+		"prepare": "husky"
 	},
 	"devDependencies": {
-		"typescript": "^5.8.3",
 		"@biomejs/biome": "^2.0.0",
+		"@commitlint/cli": "^20.5.2",
+		"@commitlint/config-conventional": "^20.5.0",
+		"husky": "^9.1.7",
+		"typescript": "^5.8.3",
 		"vitest": "^3.1.0"
 	},
 	"engines": {

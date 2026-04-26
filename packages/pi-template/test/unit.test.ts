@@ -35,7 +35,13 @@ describe("pi-template extension", () => {
 			const mod = await import("../src/index.js");
 			const { api, tools } = createMockAPI();
 			mod.default(api);
-			const result = await tools[0].tool.execute("tc1", { name: "World" }, undefined, undefined, createMockContext() as any);
+			const result = await tools[0].tool.execute(
+				"tc1",
+				{ name: "World" },
+				undefined,
+				undefined,
+				createMockContext() as any,
+			);
 			expect(result.content).toEqual([{ type: "text", text: "Hello, World!" }]);
 			expect(result.details).toEqual({});
 		});
@@ -44,7 +50,13 @@ describe("pi-template extension", () => {
 			const mod = await import("../src/index.js");
 			const { api, tools } = createMockAPI();
 			mod.default(api);
-			const result = await tools[0].tool.execute("tc1", { name: "Alice" }, undefined, undefined, createMockContext() as any);
+			const result = await tools[0].tool.execute(
+				"tc1",
+				{ name: "Alice" },
+				undefined,
+				undefined,
+				createMockContext() as any,
+			);
 			expect(result.content[0].text).toBe("Hello, Alice!");
 		});
 	});
