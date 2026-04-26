@@ -10,6 +10,7 @@
 		"typecheck": "tsc --build",
 		"test": "vitest run",
 		"check:all": "npm run typecheck && npm run check && npm run test",
+		"create-extension": "node scripts/create-extension.js",
 		"prepare": "husky"
 	},
 	"devDependencies": {
