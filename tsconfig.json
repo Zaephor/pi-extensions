@@ -1,4 +1,4 @@
 {
 	"files": [],
-	"references": [{ "path": "packages/pi-template" }]
+	"references": [{ "path": "packages/pi-template" }, { "path": "packages/pi-monorepo-registry" }]
 }

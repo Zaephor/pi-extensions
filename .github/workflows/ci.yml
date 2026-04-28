@@ -6,7 +6,30 @@ on:
   pull_request:
 
 jobs:
-  ci:
+  detect-packages:
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.detect.outputs.packages }}
+      has-packages: ${{ steps.detect.outputs.has-packages }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect packages
+        id: detect
+        run: |
+          # Discover all dirs under packages/ with a package.json and src/
+          # Outputs JSON array of bare package names, e.g. ["pi-template","pi-monorepo-registry"]
+          packages=$(
+            for d in packages/*/; do
+              [ -f "$d/package.json" ] && [ -d "$d/src" ] && echo "${d#packages/}"
+            done | jq -R -s -c 'split("\n") | map(select(length > 0)) | map(rtrimstr("/"))'
+          )
+          echo "packages=$packages" >> "$GITHUB_OUTPUT"
+          echo "has-packages=$([ "$packages" != "[]" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "Detected: $packages"
+
+  typecheck:
+    needs: detect-packages
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,8 +41,59 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run typecheck
+      - name: Typecheck (project references)
+        run: npm run typecheck
 
-      - run: npm run check
+  lint:
+    needs: detect-packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-      - run: npm test
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run check
+
+  test-package:
+    needs: detect-packages
+    if: needs.detect-packages.outputs.has-packages == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJson(needs.detect-packages.outputs.packages) }}
+    name: test (${{ matrix.package }})
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Test ${{ matrix.package }}
+        run: npx vitest run --reporter=verbose packages/${{ matrix.package }}
+
+  test-scripts:
+    needs: detect-packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Test scripts
+        run: npx vitest run --reporter=verbose scripts
