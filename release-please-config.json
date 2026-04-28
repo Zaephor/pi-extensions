@@ -3,6 +3,10 @@
 		"packages/pi-template": {
 			"release-type": "node",
 			"changelog-type": "default"
+		},
+		"packages/pi-monorepo-registry": {
+			"release-type": "node",
+			"changelog-type": "default"
 		}
 	},
 	"bootstrap-sha": "3d57a04ed8591b79f63f9a8c0aefd75b3a4add8a"
