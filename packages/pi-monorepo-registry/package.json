@@ -1,5 +1,5 @@
 {
-	"name": "pi-template",
+	"name": "pi-monorepo-registry",
 	"version": "0.1.0",
 	"type": "module",
 	"keywords": ["pi-package"],

@@ -57,7 +57,7 @@ function toolLabel(name) {
 function generatePackageJson(name) {
 	return `${JSON.stringify(
 		{
-			name: `@pi-extensions/${name}`,
+			name: `${name}`,
 			version: "0.1.0",
 			type: "module",
 			keywords: ["pi-package"],
@@ -144,17 +144,18 @@ export default function (pi: ExtensionAPI) {
 }
 
 function generateReadme(name) {
-	return `# @pi-extensions/${name}
+	return `# ${name}
 
 A pi extension.
 
 ## Installation
 
 \`\`\`sh
-pi install npm:@pi-extensions/${name}
+pi install git:github.com/Zaephor/pi-extensions
+/monorego-install ${name}
+/reload
 \`\`\`
 
-> **Note:** This package is published to GitHub Packages under the \`@pi-extensions\` scope.
 
 ## Usage
 
@@ -173,7 +174,7 @@ ${name} extension loaded ✅
 Clone the monorepo and install dependencies from the root:
 
 \`\`\`sh
-git clone <repo-url>
+git clone https://github.com/Zaephor/pi-extensions.git
 cd pi-extensions
 npm install
 \`\`\`
@@ -917,7 +918,7 @@ function main() {
 		updateReleaseManifest(name);
 		updateRootPackageJson();
 
-		console.log(`\n✅ Extension @pi-extensions/${name} created successfully!`);
+		console.log(`\n✅ Extension ${name} created successfully!`);
 		console.log(`   Directory: packages/${name}/`);
 	} catch (err) {
 		console.error(`\n❌ Failed to create extension: ${err.message}`);

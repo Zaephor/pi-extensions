@@ -195,7 +195,7 @@ describe("create-extension file generation", () => {
 		});
 
 		it("has correct scoped name", () => {
-			expect(pkgJson.name).toBe(`@pi-extensions/${extName}`);
+			expect(pkgJson.name).toBe(extName);
 		});
 
 		it("has pi-package keyword", () => {

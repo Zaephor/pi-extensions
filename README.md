@@ -4,9 +4,9 @@ A monorepo of extensions for the [pi](https://github.com/mariozechner/pi) coding
 
 ## Overview
 
-This monorepo contains independently versioned and published pi extensions. Each package in `packages/` is a standalone extension that can be installed with `pi install npm:@pi-extensions/<name>`.
+This monorepo contains independently versioned and published pi extensions. Each package in `packages/` is a standalone extension that are consumed via git clone. Install the monorepo registry and activate individual packages:
 
-The repo uses npm workspaces — no Turborepo, Lerna, or extra tooling. Versioning is handled by [release-please](https://github.com/googleapis/release-please) in manifest mode, which generates per-package release PRs based on [conventional commits](https://www.conventionalcommits.org/). Packages are published to [GitHub Packages](https://npm.pkg.github.com) under the `@pi-extensions` scope.
+The repo uses npm workspaces — no Turborepo, Lerna, or extra tooling. Versioning is handled by [release-please](https://github.com/googleapis/release-please) in manifest mode, which generates per-package release PRs based on [conventional commits](https://www.conventionalcommits.org/). Packages are consumed via `pi install git:github.com/Zaephor/pi-extensions`.
 
 ## Quick Start
 
@@ -29,7 +29,7 @@ This runs type-checking, linting, and the full test suite across all packages. I
 2. **Set up `package.json`** with the required pi manifest fields:
    ```json
    {
-     "name": "@pi-extensions/my-extension",
+     "name": "my-extension",
      "version": "0.1.0",
      "type": "module",
      "keywords": ["pi-package"],
@@ -164,7 +164,7 @@ release-please uses these to determine version bumps: `feat` → minor, `fix` �
 | D003 | Test framework | Vitest with native ESM and TypeScript. |
 | D004 | Linting | Biome matching pi-mono conventions (tabs, 120 chars). |
 | D005 | Versioning | release-please manifest mode — independent per package. |
-| D006 | Registry | GitHub Packages (`npm.pkg.github.com`) under `@pi-extensions` scope. |
+| D006 | Consumption | Git-based — `pi install git:github.com/Zaephor/pi-extensions`. No npm publication. |
 | D007 | Hook scope | Pre-commit: changed files only. CI: full scope. |
 | D008 | Peer detection | Documented as guidance only, not implemented in pi-template code. |
 | D009 | Monorepo tooling | npm workspaces with `packages/*` glob. |

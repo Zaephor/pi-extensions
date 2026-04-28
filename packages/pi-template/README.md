@@ -1,4 +1,4 @@
-# @pi-extensions/pi-template
+# pi-template
 
 A minimal pi extension demonstrating tool, command, and event handler registration.
 
@@ -13,14 +13,11 @@ pi-template registers three things with the pi agent runtime:
 ## Installation
 
 ```sh
-pi install npm:@pi-extensions/pi-template
+pi install git:github.com/Zaephor/pi-extensions
+/monorego-install pi-template
+/reload
 ```
 
-> **Note:** This package is published to GitHub Packages under the `@pi-extensions` scope. You need a `.npmrc` file configured with a GitHub Packages auth token to install it:
->
-> ```
-> @pi-extensions:registry=https://npm.pkg.github.com
-> //npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
 > ```
 
 ## Usage
@@ -57,7 +54,7 @@ pi-template extension loaded ✅
 Clone the monorepo and install dependencies from the root:
 
 ```sh
-git clone <repo-url>
+git clone https://github.com/Zaephor/pi-extensions.git
 cd pi-extensions
 npm install
 ```

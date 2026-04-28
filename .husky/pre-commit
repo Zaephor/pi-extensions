@@ -1,6 +1,6 @@
 npx biome check --staged
 npx tsc --build
-STAGED=$(git diff --cached --name-only --diff-filter=ACMR | grep '\.ts$' | grep -v '\.d\.ts$' || true)
+STAGED=$(git diff --cached --name-only --diff-filter=ACMR | grep '\.ts$' | grep -v '\.d\.ts$' | grep -v '^scripts/test/' || true)
 if [ -n "$STAGED" ]; then
   npx vitest related --run $STAGED
 fi
