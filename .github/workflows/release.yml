@@ -1,4 +1,4 @@
-name: Release & Publish
+name: Release
 
 on:
   push:
@@ -7,7 +7,6 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  packages: write
 
 jobs:
   release-please:
@@ -23,28 +22,45 @@ jobs:
           manifest-file: .release-please-manifest.json
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  publish:
+  upload-artifacts:
     needs: release-please
     if: ${{ needs.release-please.outputs.releases_created == 'true' }}
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      packages: write
+      contents: write
     strategy:
       matrix:
         path: ${{ fromJson(needs.release-please.outputs.paths_released) }}
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          registry-url: https://npm.pkg.github.com
+      - name: Pack tarball
+        run: |
+          pkg_name=$(jq -r '.name' "${{ matrix.path }}/package.json")
+          pkg_version=$(jq -r '.version' "${{ matrix.path }}/package.json")
+          tarball="${pkg_name}-${pkg_version}.tgz"
+          tar -czf "$tarball" -C "$(dirname '${{ matrix.path }}')" "$(basename '${{ matrix.path }}')"
+          echo "tarball=$tarball" >> "$GITHUB_ENV"
 
-      - run: npm ci
+      - name: Get release tag
+        id: tag
+        run: |
+          tag=$(echo "${{ matrix.path }}" | sed 's|packages/||; s|/|--|g')
+          # For root-level packages the tag is just the path; release-please uses
+          # the component name from manifest config, so fall back to the GitHub
+          # release that was just created by matching the version.
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
-      - run: npm publish
-        working-directory: ${{ matrix.path }}
+      - name: Upload tarball to GitHub Release
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Find the release for this package. release-please tags take the form
+          # <component-name>-v<version> for non-root packages or v<version> for root.
+          pkg_version=$(jq -r '.version' "${{ matrix.path }}/package.json")
+          release_tag=$(gh release list --limit 20 --json tagName --jq ".[].tagName" | grep -E "${{ steps.tag.outputs.tag }}-v${pkg_version}$|v${pkg_version}$" | head -1)
+          if [ -z "$release_tag" ]; then
+            echo "::error::Could not find release tag for ${{ matrix.path }} v${pkg_version}"
+            exit 1
+          fi
+          gh release upload "$release_tag" "$tarball" --clobber
