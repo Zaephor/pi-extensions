@@ -9,7 +9,7 @@
  * pi-template, updates root configs atomically, and cleans up on failure.
  */
 
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -836,36 +836,68 @@ describe("SDK e2e — ${name} extension via createAgentSession", () => {
 `;
 }
 
+/**
+ * Read and parse a JSON file, retrying briefly if the read fails or returns
+ * invalid content. Handles concurrent writers that may leave transient bad state.
+ */
+function readJsonWithRetry(filePath, retries = 5, delayMs = 50) {
+	for (let i = 0; i < retries; i++) {
+		try {
+			const content = readFileSync(filePath, "utf-8").trim();
+			if (!content.startsWith("{") && !content.startsWith("[")) {
+				throw new Error(`File does not start with valid JSON: ${content.slice(0, 40)}`);
+			}
+			return JSON.parse(content);
+		} catch (err) {
+			if (i === retries - 1) throw err;
+			// Brief pause before retry — concurrent writer may be mid-update
+			const end = Date.now() + delayMs;
+			while (Date.now() < end) {}
+		}
+	}
+}
+
+/**
+ * Atomically write a JSON file: write to a temp file in the same directory,
+ * then rename over the target. Prevents concurrent readers from seeing
+ * partial writes.
+ */
+function writeJsonAtomic(filePath, data) {
+	const tmpPath = `${filePath}.tmp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+	writeFileSync(tmpPath, `${JSON.stringify(data, null, "\t")}\n`, "utf-8");
+	renameSync(tmpPath, filePath);
+}
+
 // ---------------------------------------------------------------------------
 // Root config updaters
 // ---------------------------------------------------------------------------
 
 function updateRootTsconfig(name) {
 	const tsconfigPath = resolve(rootDir, "tsconfig.json");
-	const tsconfig = JSON.parse(readFileSync(tsconfigPath, "utf-8"));
+	const tsconfig = readJsonWithRetry(tsconfigPath);
 	const ref = { path: `packages/${name}` };
 	if (!tsconfig.references.some((r) => r.path === ref.path)) {
 		tsconfig.references.push(ref);
 	}
-	writeFileSync(tsconfigPath, `${JSON.stringify(tsconfig, null, "\t")}\n`);
+	writeJsonAtomic(tsconfigPath, tsconfig);
 	console.log(`Updated tsconfig.json with packages/${name} reference`);
 }
 
 function updateReleaseManifest(name) {
 	const manifestPath = resolve(rootDir, ".release-please-manifest.json");
-	const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
+	const manifest = readJsonWithRetry(manifestPath);
 	manifest[`packages/${name}`] = "0.1.0";
-	writeFileSync(manifestPath, `${JSON.stringify(manifest, null, "\t")}\n`);
+	writeJsonAtomic(manifestPath, manifest);
 	console.log(`Updated .release-please-manifest.json with packages/${name}`);
 }
 
 function updateRootPackageJson() {
 	const pkgPath = resolve(rootDir, "package.json");
-	const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
+	const pkg = readJsonWithRetry(pkgPath);
 	if (!pkg.scripts["create-extension"]) {
 		pkg.scripts["create-extension"] = "node scripts/create-extension.js";
 	}
-	writeFileSync(pkgPath, `${JSON.stringify(pkg, null, "\t")}\n`);
+	writeJsonAtomic(pkgPath, pkg);
 	console.log('Updated package.json with "create-extension" script');
 }
 

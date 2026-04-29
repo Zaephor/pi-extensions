@@ -1,6 +1,15 @@
 npx biome check --staged --no-errors-on-unmatched
 npx tsc --build
+
+# Run tests related to staged .ts files (excluding script test files — those run below)
 STAGED=$(git diff --cached --name-only --diff-filter=ACMR | grep '\.ts$' | grep -v '\.d\.ts$' | grep -v '^scripts/test/' || true)
 if [ -n "$STAGED" ]; then
   npx vitest related --run $STAGED
+fi
+
+# If scaffold scripts or vitest configs changed, run the scripts test suite
+# (uses single-fork to avoid race conditions on shared config files)
+SCRIPTS_CHANGED=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '^(scripts/|vitest\.config)' || true)
+if [ -n "$SCRIPTS_CHANGED" ]; then
+  npx vitest run --config scripts/vitest.config.ts
 fi
