@@ -1,4 +1,14 @@
 {
 	"files": [],
-	"references": [{ "path": "packages/pi-template" }, { "path": "packages/pi-monorepo-registry" }]
+	"references": [
+		{
+			"path": "packages/pi-template"
+		},
+		{
+			"path": "packages/pi-monorepo-registry"
+		},
+		{
+			"path": "packages/pi-co-author"
+		}
+	]
 }
