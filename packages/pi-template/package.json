@@ -1,12 +1,18 @@
 {
 	"name": "pi-template",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"type": "module",
-	"keywords": ["pi-package"],
-	"files": ["src"],
+	"keywords": [
+		"pi-package"
+	],
+	"files": [
+		"src"
+	],
 	"main": "./src/index.ts",
 	"pi": {
-		"extensions": ["./src/index.ts"]
+		"extensions": [
+			"./src/index.ts"
+		]
 	},
 	"scripts": {
 		"build": "echo 'nothing to build'",
