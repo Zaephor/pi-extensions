@@ -265,13 +265,16 @@ describe("pi-monorepo-registry integration", () => {
 			fixtures.push(fixture);
 			await mkdir(join(fixture.rootDir, "node_modules"), { recursive: true });
 
-			// Set GSD_CODING_AGENT_DIR to a temp dir so global scope is predictable
-			// (APP_NAME resolves to "gsd" via PI_PACKAGE_DIR, so ENV_AGENT_DIR is "GSD_CODING_AGENT_DIR")
+			// Set agent dir env vars to a temp dir so global scope is predictable.
+			// APP_NAME is "gsd" when piConfig.name is set (local dev), "pi" otherwise (published SDK).
+			// Set both env vars so the test works in either environment.
 			const globalDir = join(tmpdir(), `pi-install-global-agent-${Date.now()}`);
 			await mkdir(globalDir, { recursive: true });
 			fixtures.push({ rootDir: globalDir, packagesDir: globalDir });
-			const origEnv = process.env.GSD_CODING_AGENT_DIR;
+			const origGsdEnv = process.env.GSD_CODING_AGENT_DIR;
+			const origPiEnv = process.env.PI_CODING_AGENT_DIR;
 			process.env.GSD_CODING_AGENT_DIR = globalDir;
+			process.env.PI_CODING_AGENT_DIR = globalDir;
 
 			try {
 				const mod = await import("../src/index.js");
@@ -306,10 +309,15 @@ describe("pi-monorepo-registry integration", () => {
 				const stat = await lstat(symlinkPath);
 				expect(stat.isSymbolicLink()).toBe(true);
 			} finally {
-				if (origEnv !== undefined) {
-					process.env.GSD_CODING_AGENT_DIR = origEnv;
+				if (origGsdEnv !== undefined) {
+					process.env.GSD_CODING_AGENT_DIR = origGsdEnv;
 				} else {
 					delete process.env.GSD_CODING_AGENT_DIR;
+				}
+				if (origPiEnv !== undefined) {
+					process.env.PI_CODING_AGENT_DIR = origPiEnv;
+				} else {
+					delete process.env.PI_CODING_AGENT_DIR;
 				}
 			}
 		});
