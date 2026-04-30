@@ -27,6 +27,7 @@
 			"packages/*/test/**/*.ts",
 			"scripts/*.js",
 			"scripts/test/**/*.ts",
+			"shared/**/*.ts",
 			"*.ts"
 		]
 	},
