@@ -9,6 +9,7 @@
 		"check": "biome check",
 		"typecheck": "tsc --build",
 		"test": "vitest run",
+		"test:cli-e2e": "vitest run --testNamePattern 'CLI e2e' shared/test/",
 		"check:all": "npm run typecheck && npm run check && npm run test",
 		"create-extension": "node scripts/create-extension.js",
 		"prepare": "husky"
