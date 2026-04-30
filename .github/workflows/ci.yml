@@ -97,3 +97,19 @@ jobs:
 
       - name: Test scripts
         run: npx vitest run --config scripts/vitest.config.ts --reporter=verbose
+
+  test-cli-e2e:
+    needs: detect-packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+
+      - name: CLI e2e tests
+        run: npm run test:cli-e2e
