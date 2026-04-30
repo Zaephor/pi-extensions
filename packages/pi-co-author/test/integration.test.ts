@@ -6,7 +6,7 @@
  * complete initialization path end-to-end.
  */
 
-import type { ExtensionAPI, ExtensionHandler, ToolDefinition } from "@mariozechner/pi-coding-agent";
+import type { Api, ExtensionAPI, ExtensionHandler, Model } from "@mariozechner/pi-coding-agent";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -14,19 +14,27 @@ import { describe, expect, it } from "vitest";
  * matching the shape pi uses internally.
  */
 function createRecordingMock() {
-	const tools = new Map<string, ToolDefinition>();
+	const flags = new Map<string, { description?: string; type: string; default?: string | boolean }>();
+	const flagValues = new Map<string, string | boolean | undefined>();
 	const commands = new Map<
 		string,
 		{ description?: string; handler: (args: string, ctx: any) => Promise<void> | void }
 	>();
-	const handlers = new Map<string, Function[]>();
+	const handlers = new Map<string, ((...args: any[]) => unknown)[]>();
 
 	const api = {
-		registerTool(tool: ToolDefinition) {
-			tools.set(tool.name, tool);
+		registerTool() {
+			// pi-co-author no longer registers a tool
 		},
 		registerCommand(name: string, options: any) {
 			commands.set(name, { description: options.description, handler: options.handler });
+		},
+		registerFlag(name: string, options: { description?: string; type: string; default?: string | boolean }) {
+			flags.set(name, options);
+			flagValues.set(name, options.default);
+		},
+		getFlag(name: string) {
+			return flagValues.get(name);
 		},
 		on(event: string, handler: ExtensionHandler<any, any>) {
 			const list = handlers.get(event) ?? [];
@@ -36,8 +44,6 @@ function createRecordingMock() {
 
 		// Stubs for remaining ExtensionAPI surface
 		registerShortcut: () => {},
-		registerFlag: () => {},
-		getFlag: () => undefined,
 		registerMessageRenderer: () => {},
 		sendMessage: () => {},
 		sendUserMessage: () => {},
@@ -54,20 +60,21 @@ function createRecordingMock() {
 		getThinkingLevel: () => "none" as any,
 		setThinkingLevel: () => {},
 		registerProvider: () => {},
+		events: {} as any,
 	} as unknown as ExtensionAPI;
 
-	return { api, tools, commands, handlers };
+	return { api, flags, flagValues, commands, handlers };
 }
 
 /** Minimal context for invoking handlers in tests. */
-function testContext(notify?: (...args: any[]) => void) {
+function testContext(overrides?: { notify?: (...args: any[]) => void; model?: Model<Api> }) {
 	return {
-		ui: { notify: notify ?? (() => {}) },
+		ui: { notify: overrides?.notify ?? (() => {}) },
 		hasUI: true,
 		cwd: "/tmp",
 		sessionManager: {} as any,
 		modelRegistry: {} as any,
-		model: undefined,
+		model: overrides?.model ?? undefined,
 		isIdle: () => true,
 		signal: undefined,
 		abort: () => {},
@@ -86,96 +93,189 @@ describe("pi-co-author integration — full extension loading", () => {
 		expect(mod.default.length).toBe(1); // expects one argument: ExtensionAPI
 	});
 
-	it("factory initializes without errors and populates all Maps", async () => {
+	it("factory initializes without errors and registers flags + handlers", async () => {
 		const mod = await import("../src/index.js");
-		const { api, tools, handlers } = createRecordingMock();
+		const { api, flags, handlers } = createRecordingMock();
 		mod.default(api);
 
-		expect(tools.size).toBe(1);
-		expect(handlers.size).toBe(1);
+		// Should register the co-author-mode flag
+		expect(flags.has("co-author-mode")).toBe(true);
+		// Should register two event handlers: tool_call + session_start
+		expect(handlers.has("tool_call")).toBe(true);
+		expect(handlers.has("session_start")).toBe(true);
+	});
+});
+
+describe("flag registration", () => {
+	it("registers co-author-mode flag with correct default", async () => {
+		const mod = await import("../src/index.js");
+		const { api, flags } = createRecordingMock();
+		mod.default(api);
+
+		const flag = flags.get("co-author-mode")!;
+		expect(flag.type).toBe("string");
+		expect(flag.default).toBe("single");
+	});
+});
+
+describe("event registration", () => {
+	it("registers tool_call handler", async () => {
+		const mod = await import("../src/index.js");
+		const { api, handlers } = createRecordingMock();
+		mod.default(api);
+
+		expect(handlers.get("tool_call")!).toHaveLength(1);
 	});
 
-	describe("tool registration via Map", () => {
-		it("registers the 'pi-co-author' tool in the tools Map", async () => {
-			const mod = await import("../src/index.js");
-			const { api, tools } = createRecordingMock();
-			mod.default(api);
+	it("registers session_start handler", async () => {
+		const mod = await import("../src/index.js");
+		const { api, handlers } = createRecordingMock();
+		mod.default(api);
 
-			expect(tools.has("pi-co-author")).toBe(true);
-			const tool = tools.get("pi-co-author")!;
-			expect(tool.name).toBe("pi-co-author");
-			expect(tool.label).toBe("Pi-co-author");
-		});
-
-		it("tool has a valid parameter schema", async () => {
-			const mod = await import("../src/index.js");
-			const { api, tools } = createRecordingMock();
-			mod.default(api);
-
-			const tool = tools.get("pi-co-author")!;
-			const schema = tool.parameters;
-
-			expect(schema.type).toBe("object");
-		});
-
-		it("tool execute returns correct result", async () => {
-			const mod = await import("../src/index.js");
-			const { api, tools } = createRecordingMock();
-			mod.default(api);
-
-			const tool = tools.get("pi-co-author")!;
-			const result = await tool.execute("tc1", {}, undefined, undefined, testContext() as any);
-
-			expect(result.content).toEqual([{ type: "text", text: "pi-co-author executed" }]);
-			expect(result.details).toEqual({});
-		});
+		expect(handlers.get("session_start")!).toHaveLength(1);
 	});
 
-	describe("event registration via Map", () => {
-		it("registers session_start handler in the handlers Map", async () => {
-			const mod = await import("../src/index.js");
-			const { api, handlers } = createRecordingMock();
-			mod.default(api);
+	it("session_start handler notifies extension loaded with mode", async () => {
+		const mod = await import("../src/index.js");
+		const { api, handlers } = createRecordingMock();
+		mod.default(api);
 
-			expect(handlers.has("session_start")).toBe(true);
-			expect(handlers.get("session_start")!).toHaveLength(1);
-		});
+		const notified: any[] = [];
+		const ctx = testContext({ notify: (...args: any[]) => notified.push(args) });
+		const [handler] = handlers.get("session_start")!;
+		await handler({ type: "session_start", reason: "startup" }, ctx as any);
 
-		it("session_start handler notifies extension loaded", async () => {
-			const mod = await import("../src/index.js");
-			const { api, handlers } = createRecordingMock();
-			mod.default(api);
+		expect(notified).toHaveLength(1);
+		expect(notified[0][0]).toContain("pi-co-author extension loaded");
+		expect(notified[0][0]).toContain("single mode");
+		expect(notified[0][1]).toBe("info");
+	});
+});
 
-			const notified: any[] = [];
-			const ctx = testContext((...args: any[]) => notified.push(args));
-			const [handler] = handlers.get("session_start")!;
-			await handler({}, ctx as any);
+describe("tool_call handler behavior", () => {
+	it("ignores non-bash tool calls", async () => {
+		const mod = await import("../src/index.js");
+		const { api, handlers } = createRecordingMock();
+		mod.default(api);
 
-			expect(notified).toEqual([["pi-co-author extension loaded ✅", "info"]]);
-		});
+		const [handler] = handlers.get("tool_call")!;
+		const event = { type: "tool_call", toolCallId: "tc1", toolName: "read", input: { path: "/foo" } };
+		const result = await handler(event, testContext() as any);
+
+		// Should return undefined (no mutation, no block)
+		expect(result).toBeUndefined();
+		expect(event.input.path).toBe("/foo"); // unchanged
 	});
 
-	describe("cross-concern integration", () => {
-		it("factory is idempotent — calling twice doubles registrations", async () => {
-			const mod = await import("../src/index.js");
-			const { api, tools, handlers } = createRecordingMock();
+	it("ignores bash commands that are not git commits", async () => {
+		const mod = await import("../src/index.js");
+		const { api, handlers } = createRecordingMock();
+		mod.default(api);
 
-			mod.default(api);
-			mod.default(api);
+		const [handler] = handlers.get("tool_call")!;
+		const event = { type: "tool_call", toolCallId: "tc1", toolName: "bash", input: { command: "npm run build" } };
+		await handler(event, testContext() as any);
 
-			expect(tools.size).toBe(1); // same key overwrites
-			expect(handlers.get("session_start")!).toHaveLength(2); // on() appends
-		});
+		expect(event.input.command).toBe("npm run build"); // unchanged
+	});
 
-		it("full round-trip: import → factory → tool execute produces output", async () => {
-			const mod = await import("../src/index.js");
-			const { api, tools } = createRecordingMock();
-			mod.default(api);
+	it("rewrites git commit command with co-author trailer", async () => {
+		const mod = await import("../src/index.js");
+		const { api, handlers } = createRecordingMock();
+		mod.default(api);
 
-			const tool = tools.get("pi-co-author")!;
-			const result = await tool.execute("tc-roundtrip", {}, undefined, undefined, testContext() as any);
+		const [handler] = handlers.get("tool_call")!;
+		const event = {
+			type: "tool_call",
+			toolCallId: "tc1",
+			toolName: "bash",
+			input: { command: 'git commit -m "fix: typo"' },
+		};
+		await handler(event, testContext() as any);
 
-			expect(result.content[0].text).toBe("pi-co-author executed");
-		});
+		expect(event.input.command).toContain("Co-Authored-By:");
+		expect(event.input.command).toContain("fix: typo"); // original message preserved
+	});
+
+	it("does not rewrite when mode is disabled", async () => {
+		const mod = await import("../src/index.js");
+		const { api, flagValues, handlers } = createRecordingMock();
+		mod.default(api);
+		// Override the flag AFTER factory sets the default
+		flagValues.set("co-author-mode", "disabled");
+
+		const [handler] = handlers.get("tool_call")!;
+		const event = {
+			type: "tool_call",
+			toolCallId: "tc1",
+			toolName: "bash",
+			input: { command: 'git commit -m "fix: typo"' },
+		};
+		await handler(event, testContext() as any);
+
+		expect(event.input.command).toBe('git commit -m "fix: typo"'); // unchanged
+	});
+
+	it("uses model name from context when available", async () => {
+		const mod = await import("../src/index.js");
+		const { api, handlers } = createRecordingMock();
+		mod.default(api);
+
+		const model: Model<Api> = {
+			id: "gpt-4o",
+			name: "GPT-4o",
+			api: "openai-responses" as Api,
+			provider: "openai",
+			baseUrl: "https://api.openai.com",
+			reasoning: false,
+			input: ["text", "image"],
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+			contextWindow: 128000,
+			maxTokens: 16384,
+		};
+		const ctx = testContext({ model });
+
+		const [handler] = handlers.get("tool_call")!;
+		const event = {
+			type: "tool_call",
+			toolCallId: "tc1",
+			toolName: "bash",
+			input: { command: 'git commit -m "feat: new feature"' },
+		};
+		await handler(event, ctx as any);
+
+		expect(event.input.command).toContain("GPT-4o");
+	});
+});
+
+describe("cross-concern integration", () => {
+	it("factory is idempotent — calling twice doubles event handlers", async () => {
+		const mod = await import("../src/index.js");
+		const { api, handlers } = createRecordingMock();
+
+		mod.default(api);
+		mod.default(api);
+
+		// on() appends, so two calls = two handlers per event
+		expect(handlers.get("tool_call")!).toHaveLength(2);
+		expect(handlers.get("session_start")!).toHaveLength(2);
+	});
+
+	it("full round-trip: import → factory → tool_call rewrites git commit", async () => {
+		const mod = await import("../src/index.js");
+		const { api, handlers } = createRecordingMock();
+		mod.default(api);
+
+		const [handler] = handlers.get("tool_call")!;
+		const event = {
+			type: "tool_call",
+			toolCallId: "tc-e2e",
+			toolName: "bash",
+			input: { command: 'git commit -m "initial commit"' },
+		};
+		await handler(event, testContext() as any);
+
+		expect(event.input.command).toContain("initial commit");
+		expect(event.input.command).toContain("Co-Authored-By:");
 	});
 });

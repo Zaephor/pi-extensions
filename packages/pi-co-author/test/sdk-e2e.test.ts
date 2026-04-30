@@ -56,36 +56,15 @@ describe("SDK e2e — pi-co-author extension via createAgentSession", () => {
 		expect(extensionsResult.extensions.length).toBeGreaterThanOrEqual(1);
 	});
 
-	it("registers the pi-co-author tool", () => {
-		let foundTool: any = null;
+	it("subscribes to tool_call event", () => {
+		let found = false;
 		for (const ext of extensionsResult.extensions) {
-			if (ext.tools.has("pi-co-author")) {
-				foundTool = ext.tools.get("pi-co-author");
+			if (ext.handlers.has("tool_call")) {
+				found = true;
 				break;
 			}
 		}
-		expect(foundTool).not.toBeNull();
-		expect(foundTool.definition.name).toBe("pi-co-author");
-		expect(foundTool.definition.label).toBe("Pi-co-author");
-	});
-
-	it("tool execute returns correct result", async () => {
-		let toolDef: any = null;
-		for (const ext of extensionsResult.extensions) {
-			if (ext.tools.has("pi-co-author")) {
-				toolDef = ext.tools.get("pi-co-author")!.definition;
-				break;
-			}
-		}
-		expect(toolDef).not.toBeNull();
-
-		const result = await toolDef.execute("test-call-id", {}, undefined, undefined, {
-			ui: { notify: () => {} },
-			cwd: process.cwd(),
-		} as any);
-
-		expect(result.content).toEqual([{ type: "text", text: "pi-co-author executed" }]);
-		expect(result.details).toEqual({});
+		expect(found).toBe(true);
 	});
 
 	it("subscribes to session_start event", () => {
@@ -99,9 +78,27 @@ describe("SDK e2e — pi-co-author extension via createAgentSession", () => {
 		expect(found).toBe(true);
 	});
 
+	it("registers the co-author-mode flag", () => {
+		let found = false;
+		for (const ext of extensionsResult.extensions) {
+			if (ext.flags instanceof Map) {
+				if (ext.flags.has("co-author-mode")) {
+					found = true;
+					break;
+				}
+			} else if (Array.isArray(ext.flags)) {
+				if (ext.flags.some((f: any) => f.name === "co-author-mode")) {
+					found = true;
+					break;
+				}
+			}
+		}
+		expect(found).toBe(true);
+	});
+
 	it("extension resolves to correct path", () => {
 		const matching = extensionsResult.extensions.filter(
-			(ext) => ext.path.includes("pi-co-author") || ext.resolvedPath.includes("pi-co-author"),
+			(ext: any) => ext.path.includes("pi-co-author") || ext.resolvedPath.includes("pi-co-author"),
 		);
 		expect(matching.length).toBeGreaterThanOrEqual(1);
 	});
