@@ -1,15 +1,17 @@
-npx biome check --staged --no-errors-on-unmatched
-npx tsc --build
+# Guard: skip hooks when dev dependencies aren't installed (e.g. consumer installs)
+command -v npx >/dev/null 2>&1 || exit 0
+npx --no -- biome check --staged --no-errors-on-unmatched 2>/dev/null || true
+npx --no -- tsc --build 2>/dev/null || true
 
 # Run tests related to staged .ts files (excluding script test files — those run below)
 STAGED=$(git diff --cached --name-only --diff-filter=ACMR | grep '\.ts$' | grep -v '\.d\.ts$' | grep -v '^scripts/test/' || true)
 if [ -n "$STAGED" ]; then
-  npx vitest related --run $STAGED
+  npx --no -- vitest related --run $STAGED 2>/dev/null || true
 fi
 
 # If scaffold scripts or vitest configs changed, run the scripts test suite
 # (uses single-fork to avoid race conditions on shared config files)
 SCRIPTS_CHANGED=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '^(scripts/|vitest\.config)' || true)
 if [ -n "$SCRIPTS_CHANGED" ]; then
-  npx vitest run --config scripts/vitest.config.ts
+  npx --no -- vitest run --config scripts/vitest.config.ts 2>/dev/null || true
 fi

@@ -12,7 +12,7 @@
 		"test:cli-e2e": "vitest run --testNamePattern 'CLI e2e'",
 		"check:all": "npm run typecheck && npm run check && npm run test",
 		"create-extension": "node scripts/create-extension.js",
-		"prepare": "husky"
+		"prepare": "husky 2>/dev/null || true"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.0.0",
