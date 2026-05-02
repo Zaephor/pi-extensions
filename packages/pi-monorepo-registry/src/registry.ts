@@ -8,7 +8,7 @@
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { discoverPackages } from "./discovery.js";
-import { resolveSourceRoot } from "./git.js";
+import { extractShortName, resolveSourceRoot } from "./git.js";
 import type { MonorepoSource, PackageInfo, RegistryState } from "./types.js";
 
 /** Entry types recorded via pi.appendEntry(). */
@@ -48,6 +48,17 @@ export class MonorepoRegistry {
 		return this.state.sources.find((s) => s.url === url);
 	}
 
+	/** Find a source by short name (case-insensitive). E.g. "zaephor/pi-extensions". */
+	findByShortName(shortName: string): MonorepoSource | undefined {
+		const lower = shortName.toLowerCase();
+		return this.state.sources.find((s) => s.shortName === lower);
+	}
+
+	/** Find all sources that contain a package with the given name. */
+	findPackageSources(packageName: string): Array<MonorepoSource> {
+		return this.state.sources.filter((s) => s.packages.some((p) => p.name === packageName));
+	}
+
 	/**
 	 * Register a new monorepo source and discover its packages.
 	 *
@@ -75,6 +86,7 @@ export class MonorepoRegistry {
 
 		const source: MonorepoSource = {
 			url,
+			shortName: extractShortName(url),
 			packagesRoot,
 			packages,
 			lastUpdated: new Date().toISOString(),
@@ -124,22 +136,25 @@ export class MonorepoRegistry {
 	/**
 	 * Re-discover packages for a specific source (or all sources).
 	 *
-	 * @param url - URL of the source to update, or undefined to update all.
+	 * @param identifier - URL or shortName of the source to update, or undefined to update all.
 	 * @param monorepoRoot - Override for the filesystem path.
 	 * @returns Updated source(s).
 	 */
-	async updateSource(url?: string, monorepoRoot?: string): Promise<MonorepoSource[]> {
-		const sources = url ? [this.findSource(url)] : this.state.sources;
+	async updateSource(identifier?: string, monorepoRoot?: string): Promise<MonorepoSource[]> {
+		let sources: MonorepoSource[];
+		if (identifier) {
+			const found = this.findSource(identifier) ?? this.findByShortName(identifier);
+			if (!found) {
+				throw new Error(`Source not found: ${identifier}`);
+			}
+			sources = [found];
+		} else {
+			sources = [...this.state.sources];
+		}
+
 		const updated: MonorepoSource[] = [];
 
 		for (const source of sources) {
-			if (!source) {
-				if (url) {
-					throw new Error(`Source not found: ${url}`);
-				}
-				continue;
-			}
-
 			const resolved = monorepoRoot ? { rootPath: monorepoRoot, cloned: false } : resolveSourceRoot(source.url);
 			const root = resolved.rootPath;
 			let packages: PackageInfo[];

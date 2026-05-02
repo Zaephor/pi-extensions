@@ -3,6 +3,7 @@
  * using a fixture monorepo on the real filesystem.
  */
 
+import { existsSync, unlinkSync } from "node:fs";
 import { lstat, mkdir, readlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -86,12 +87,22 @@ describe("pi-monorepo-registry integration", () => {
 		for (const f of fixtures.splice(0)) {
 			await cleanupFixture(f);
 		}
+		// Clean up persisted registry state between tests
+		try {
+			const { getStateFilePath } = await import("../src/persistence.js");
+			const statePath = getStateFilePath();
+			if (existsSync(statePath)) {
+				unlinkSync(statePath);
+			}
+		} catch {
+			// Ignore — state file may not exist
+		}
 	});
 
 	it("factory initializes and registers all commands", async () => {
 		const mod = await import("../src/index.js");
 		const { api, commands } = createRecordingMock();
-		mod.default(api);
+		await mod.default(api);
 
 		expect(commands.has("monorepo-list")).toBe(true);
 		expect(commands.has("monorepo-install")).toBe(true);
@@ -102,14 +113,14 @@ describe("pi-monorepo-registry integration", () => {
 	it("session_start handler notifies extension loaded", async () => {
 		const mod = await import("../src/index.js");
 		const { api, handlers } = createRecordingMock();
-		mod.default(api);
+		await mod.default(api);
 
 		expect(handlers.has("session_start")).toBe(true);
 		const notified: any[] = [];
 		const ctx = testContext((...args: any[]) => notified.push(args));
 		const [handler] = handlers.get("session_start")!;
 		await handler({}, ctx as any);
-		expect(notified).toEqual([["pi-monorepo-registry extension loaded ✅", "info"]]);
+		expect(notified).toEqual([["pi-monorepo-registry loaded — 0 sources registered ✅", "info"]]);
 	});
 
 	describe("end-to-end: add → list → remove", () => {
@@ -123,7 +134,7 @@ describe("pi-monorepo-registry integration", () => {
 
 			const mod = await import("../src/index.js");
 			const { api, commands, entries } = createRecordingMock();
-			mod.default(api);
+			await mod.default(api);
 
 			// Add source
 			const notified: any[] = [];
@@ -160,7 +171,7 @@ describe("pi-monorepo-registry integration", () => {
 
 			const mod = await import("../src/index.js");
 			const { api, commands, entries } = createRecordingMock();
-			mod.default(api);
+			await mod.default(api);
 
 			const notified: any[] = [];
 			const ctx = testContext((...args: any[]) => notified.push(args));
@@ -188,7 +199,7 @@ describe("pi-monorepo-registry integration", () => {
 
 			const mod = await import("../src/index.js");
 			const { api, commands } = createRecordingMock();
-			mod.default(api);
+			await mod.default(api);
 
 			const notified: any[] = [];
 			const ctx = testContext((...args: any[]) => notified.push(args));
@@ -217,7 +228,7 @@ describe("pi-monorepo-registry integration", () => {
 
 			const mod = await import("../src/index.js");
 			const { api, commands, entries } = createRecordingMock();
-			mod.default(api);
+			await mod.default(api);
 
 			const notified: any[] = [];
 			// Use a temp cwd so local scope extensions go to a known dir
@@ -279,7 +290,7 @@ describe("pi-monorepo-registry integration", () => {
 			try {
 				const mod = await import("../src/index.js");
 				const { api, commands, entries } = createRecordingMock();
-				mod.default(api);
+				await mod.default(api);
 
 				const notified: any[] = [];
 				const ctx = testContext((...args: any[]) => notified.push(args));
@@ -335,7 +346,7 @@ describe("pi-monorepo-registry integration", () => {
 
 			const mod = await import("../src/index.js");
 			const { api, commands, entries } = createRecordingMock();
-			mod.default(api);
+			await mod.default(api);
 
 			const ctx = { ...testContext(), cwd: localCwd };
 			const regCmd = commands.get("monorepo-registry")!;
@@ -367,7 +378,7 @@ describe("pi-monorepo-registry integration", () => {
 
 			const mod = await import("../src/index.js");
 			const { api, commands } = createRecordingMock();
-			mod.default(api);
+			await mod.default(api);
 
 			const notified: any[] = [];
 			const ctx = { ...testContext((...args: any[]) => notified.push(args)), cwd: localCwd };
@@ -388,7 +399,7 @@ describe("pi-monorepo-registry integration", () => {
 
 			const mod = await import("../src/index.js");
 			const { api, commands } = createRecordingMock();
-			mod.default(api);
+			await mod.default(api);
 
 			const notified: any[] = [];
 			const ctx = testContext((...args: any[]) => notified.push(args));
@@ -406,7 +417,7 @@ describe("pi-monorepo-registry integration", () => {
 		it("install shows error when no source registered", async () => {
 			const mod = await import("../src/index.js");
 			const { api, commands } = createRecordingMock();
-			mod.default(api);
+			await mod.default(api);
 
 			const notified: any[] = [];
 			const ctx = testContext((...args: any[]) => notified.push(args));
@@ -430,24 +441,32 @@ describe("pi-monorepo-registry integration", () => {
 
 			const mod = await import("../src/index.js");
 			const { api, commands } = createRecordingMock();
-			mod.default(api);
+			await mod.default(api);
 
 			const notified: any[] = [];
 			const ctx = { ...testContext((...args: any[]) => notified.push(args)), cwd: localCwd };
 			const regCmd = commands.get("monorepo-registry")!;
 
-			// Register source with a short alias (not a path)
-			await regCmd.handler(`add my-source packages ${fixture.rootDir}`, ctx as any);
+			// Register source — shortName will be derived from the local path (last dir segment)
+			await regCmd.handler(`add ${fixture.rootDir} packages`, ctx as any);
 
-			// Use source/package format with the short alias
+			// Get the registered source's shortName
+			const listNotified: any[] = [];
+			const listCtx = testContext((...args: any[]) => listNotified.push(args));
+			const listCmd = commands.get("monorepo-list")!;
+			await listCmd.handler("", listCtx as any);
+			const shortNameMatch = listNotified[0][0].match(/📦\s+(.+)/);
+			const shortName = shortNameMatch ? shortNameMatch[1].trim() : fixture.rootDir.split("/").pop()!;
+
+			// Use source/package format with the shortName
 			const installCmd = commands.get("monorepo-install")!;
-			await installCmd.handler("my-source/targeted-pkg -l", ctx as any);
+			await installCmd.handler(`${shortName}/targeted-pkg -l`, ctx as any);
 
 			expect(notified[notified.length - 1][0]).toContain("Installed targeted-pkg");
 		});
 
 		it("install shows error for unregistered source in source/package format", async () => {
-			// Need at least one source registered to reach the source/package parsing branch
+			// Need at least one source registered to reach the install logic
 			const fixture = await createFixtureMonorepo("install-unreg-source", [
 				{ name: "other-pkg", piExtensions: ["./src/index.ts"] },
 			]);
@@ -455,7 +474,7 @@ describe("pi-monorepo-registry integration", () => {
 
 			const mod = await import("../src/index.js");
 			const { api, commands } = createRecordingMock();
-			mod.default(api);
+			await mod.default(api);
 
 			const notified: any[] = [];
 			const ctx = testContext((...args: any[]) => notified.push(args));
@@ -463,17 +482,18 @@ describe("pi-monorepo-registry integration", () => {
 			await regCmd.handler(`add ${fixture.rootDir} packages`, ctx as any);
 
 			const installCmd = commands.get("monorepo-install")!;
-			// Use a short source name (not starting with / or @) that isn't registered
+			// Use a source/package combo that doesn't match any registered source
+			// Falls through to bare-name lookup for "nonexistent-source/some-pkg"
 			await installCmd.handler("nonexistent-source/some-pkg", ctx as any);
 
-			expect(notified[notified.length - 1][0]).toContain("not registered");
+			expect(notified[notified.length - 1][0]).toContain("not found");
 			expect(notified[notified.length - 1][1]).toBe("error");
 		});
 
 		it("install with empty args shows usage", async () => {
 			const mod = await import("../src/index.js");
 			const { api, commands } = createRecordingMock();
-			mod.default(api);
+			await mod.default(api);
 
 			const notified: any[] = [];
 			const ctx = testContext((...args: any[]) => notified.push(args));
@@ -499,7 +519,7 @@ describe("pi-monorepo-registry integration", () => {
 
 			const mod = await import("../src/index.js");
 			const { api, commands, entries } = createRecordingMock();
-			mod.default(api);
+			await mod.default(api);
 
 			const ctx = { ...testContext(), cwd: localCwd };
 			const regCmd = commands.get("monorepo-registry")!;
@@ -543,7 +563,7 @@ describe("pi-monorepo-registry integration", () => {
 
 			const mod = await import("../src/index.js");
 			const { api, commands, entries } = createRecordingMock();
-			mod.default(api);
+			await mod.default(api);
 
 			const ctx = { ...testContext(), cwd: localCwd };
 			const regCmd = commands.get("monorepo-registry")!;
@@ -577,7 +597,7 @@ describe("pi-monorepo-registry integration", () => {
 
 			const mod = await import("../src/index.js");
 			const { api, commands } = createRecordingMock();
-			mod.default(api);
+			await mod.default(api);
 
 			const ctx = { ...testContext(), cwd: localCwd };
 			const regCmd = commands.get("monorepo-registry")!;
@@ -597,7 +617,7 @@ describe("pi-monorepo-registry integration", () => {
 		it("shows info when package not installed", async () => {
 			const mod = await import("../src/index.js");
 			const { api, commands, entries } = createRecordingMock();
-			mod.default(api);
+			await mod.default(api);
 
 			const notified: any[] = [];
 			const ctx = testContext((...args: any[]) => notified.push(args));
@@ -616,7 +636,7 @@ describe("pi-monorepo-registry integration", () => {
 		it("with empty args shows usage", async () => {
 			const mod = await import("../src/index.js");
 			const { api, commands } = createRecordingMock();
-			mod.default(api);
+			await mod.default(api);
 
 			const notified: any[] = [];
 			const ctx = testContext((...args: any[]) => notified.push(args));
@@ -632,7 +652,7 @@ describe("pi-monorepo-registry integration", () => {
 		it("add with non-existent path shows error message", async () => {
 			const mod = await import("../src/index.js");
 			const { api, commands } = createRecordingMock();
-			mod.default(api);
+			await mod.default(api);
 
 			const notified: any[] = [];
 			const ctx = testContext((...args: any[]) => notified.push(args));
@@ -646,7 +666,7 @@ describe("pi-monorepo-registry integration", () => {
 		it("no-args /monorepo-registry shows usage", async () => {
 			const mod = await import("../src/index.js");
 			const { api, commands } = createRecordingMock();
-			mod.default(api);
+			await mod.default(api);
 
 			const notified: any[] = [];
 			const ctx = testContext((...args: any[]) => notified.push(args));

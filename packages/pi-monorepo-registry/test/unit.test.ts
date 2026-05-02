@@ -293,7 +293,7 @@ describe("extension factory", () => {
 	it("registers four slash commands", async () => {
 		const mod = await import("../src/index.js");
 		const { api, commands } = createMockAPI();
-		mod.default(api);
+		await mod.default(api);
 		const names = commands.map((c) => c.name);
 		expect(names).toContain("monorepo-list");
 		expect(names).toContain("monorepo-install");
@@ -305,7 +305,7 @@ describe("extension factory", () => {
 	it("registers session_start event handler", async () => {
 		const mod = await import("../src/index.js");
 		const { api, events } = createMockAPI();
-		mod.default(api);
+		await mod.default(api);
 		expect(events.some((e) => e.event === "session_start")).toBe(true);
 	});
 
@@ -313,7 +313,7 @@ describe("extension factory", () => {
 		it("shows message when no sources registered", async () => {
 			const mod = await import("../src/index.js");
 			const { api, commands } = createMockAPI();
-			mod.default(api);
+			await mod.default(api);
 
 			const notified: string[] = [];
 			const ctx = createMockContext({ notify: (msg: string) => notified.push(msg) });
@@ -329,7 +329,7 @@ describe("extension factory", () => {
 		it("shows error when no URL provided", async () => {
 			const mod = await import("../src/index.js");
 			const { api, commands } = createMockAPI();
-			mod.default(api);
+			await mod.default(api);
 
 			const notified: string[] = [];
 			const ctx = createMockContext({ notify: (msg: string, level: string) => notified.push(`${level}:${msg}`) });
@@ -344,27 +344,27 @@ describe("extension factory", () => {
 		it("shows error when no URL provided", async () => {
 			const mod = await import("../src/index.js");
 			const { api, commands } = createMockAPI();
-			mod.default(api);
+			await mod.default(api);
 
 			const notified: string[] = [];
 			const ctx = createMockContext({ notify: (msg: string, level: string) => notified.push(`${level}:${msg}`) });
 			const regCmd = commands.find((c) => c.name === "monorepo-registry")!;
 			await regCmd.handler("remove", ctx as any);
 
-			expect(notified[0]).toContain("URL required");
+			expect(notified[0]).toContain("source required");
 		});
 
 		it("shows error when removing non-existent source", async () => {
 			const mod = await import("../src/index.js");
 			const { api, commands } = createMockAPI();
-			mod.default(api);
+			await mod.default(api);
 
 			const notified: string[] = [];
 			const ctx = createMockContext({ notify: (msg: string, level: string) => notified.push(`${level}:${msg}`) });
 			const regCmd = commands.find((c) => c.name === "monorepo-registry")!;
 			await regCmd.handler("remove https://nope.example.com", ctx as any);
 
-			expect(notified[0]).toContain("Source not found");
+			expect(notified[0]).toContain('"https://nope.example.com" not found');
 		});
 	});
 
@@ -372,7 +372,7 @@ describe("extension factory", () => {
 		it("shows info when no sources to update", async () => {
 			const mod = await import("../src/index.js");
 			const { api, commands } = createMockAPI();
-			mod.default(api);
+			await mod.default(api);
 
 			const notified: string[] = [];
 			const ctx = createMockContext({ notify: (msg: string) => notified.push(msg) });
@@ -387,7 +387,7 @@ describe("extension factory", () => {
 		it("shows error for unknown subcommand", async () => {
 			const mod = await import("../src/index.js");
 			const { api, commands } = createMockAPI();
-			mod.default(api);
+			await mod.default(api);
 
 			const notified: string[] = [];
 			const ctx = createMockContext({ notify: (msg: string, level: string) => notified.push(`${level}:${msg}`) });

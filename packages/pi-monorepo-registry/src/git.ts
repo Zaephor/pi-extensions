@@ -13,6 +13,46 @@ import process from "node:process";
 import { getAgentDir } from "@mariozechner/pi-coding-agent";
 
 /**
+ * Extract a short, human-friendly name from a git URL.
+ * E.g. "https://github.com/Zaephor/pi-extensions.git" → "zaephor/pi-extensions"
+ * E.g. "git@github.com:Zaephor/pi-extensions.git" → "zaephor/pi-extensions"
+ * Falls back to the full URL for non-git paths.
+ */
+export function extractShortName(url: string): string {
+	let normalized = url.trim();
+	if (normalized.endsWith(".git")) {
+		normalized = normalized.slice(0, -4);
+	}
+	normalized = normalized.replace(/\/+$/, "");
+
+	// git@host:owner/repo
+	const sshMatch = normalized.match(/^git@[^:]+:(.+)$/);
+	if (sshMatch) {
+		return sshMatch[1].toLowerCase();
+	}
+
+	// https://host/owner/repo
+	const httpsMatch = normalized.match(/^https?:\/\/[^/]+\/(.+)$/);
+	if (httpsMatch) {
+		return httpsMatch[1].toLowerCase();
+	}
+
+	// ssh://git@host/owner/repo
+	const sshProtoMatch = normalized.match(/^ssh:\/\/[^/]+\/(.+)$/);
+	if (sshProtoMatch) {
+		return sshProtoMatch[1].toLowerCase();
+	}
+
+	// Local path — use the directory name
+	if (!normalized.includes("://") && !normalized.startsWith("git@")) {
+		const parts = normalized.replace(/\/$/, "").split("/");
+		return parts[parts.length - 1].toLowerCase();
+	}
+
+	return normalized.toLowerCase();
+}
+
+/**
  * Normalize a git URL for comparison purposes.
  * Strips trailing .git, normalizes GitHub HTTPS URLs.
  */

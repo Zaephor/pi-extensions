@@ -20,6 +20,8 @@ export interface PackageInfo {
 export interface MonorepoSource {
 	/** The URL or path identifying the monorepo source. */
 	url: string;
+	/** Short human-friendly reference extracted from the URL (e.g. "owner/repo"). Case-insensitive for matching. */
+	shortName: string;
 	/** Subdirectory containing packages (default: "packages"). */
 	packagesRoot: string;
 	/** Packages discovered in this source. */
