@@ -13,6 +13,7 @@ import { ENTRY_TYPES, MonorepoRegistry } from "./registry.js";
 import type { RegistryState, Scope } from "./types.js";
 
 export { discoverPackages, isPiCompatible } from "./discovery.js";
+export { getExtensionMonorepoRoot, isGitUrl, isSelfUrl, normalizeGitUrl, resolveSourceRoot, urlToDirName } from "./git.js";
 export { MonorepoRegistry } from "./registry.js";
 export type { MonorepoSource, PackageInfo, RegistryState } from "./types.js";
 

@@ -8,6 +8,7 @@
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { discoverPackages } from "./discovery.js";
+import { resolveSourceRoot } from "./git.js";
 import type { MonorepoSource, PackageInfo, RegistryState } from "./types.js";
 
 /** Entry types recorded via pi.appendEntry(). */
@@ -62,7 +63,9 @@ export class MonorepoRegistry {
 			throw new Error(`Source already registered: ${url}`);
 		}
 
-		const root = monorepoRoot ?? url;
+		// Resolve git URLs to local filesystem paths (clone or detect self)
+		const resolved = monorepoRoot ? { rootPath: monorepoRoot, cloned: false } : resolveSourceRoot(url);
+		const root = resolved.rootPath;
 		let packages: PackageInfo[];
 		try {
 			packages = await discoverPackages(root, packagesRoot);
@@ -137,7 +140,8 @@ export class MonorepoRegistry {
 				continue;
 			}
 
-			const root = monorepoRoot ?? source.rootPath ?? source.url;
+			const resolved = monorepoRoot ? { rootPath: monorepoRoot, cloned: false } : resolveSourceRoot(source.url);
+			const root = resolved.rootPath;
 			let packages: PackageInfo[];
 			try {
 				packages = await discoverPackages(root, source.packagesRoot);
@@ -147,9 +151,7 @@ export class MonorepoRegistry {
 
 			source.packages = packages;
 			source.lastUpdated = new Date().toISOString();
-			if (!source.rootPath) {
-				source.rootPath = root;
-			}
+			source.rootPath = root;
 			updated.push(source);
 
 			this.pi.appendEntry(ENTRY_TYPES.PACKAGES_DISCOVERED, {
