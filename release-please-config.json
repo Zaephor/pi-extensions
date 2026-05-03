@@ -1,10 +1,16 @@
 {
+	"$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+	"$comment": "This file is used as a template. The release workflow generates the packages section dynamically by scanning packages/*/.",
 	"packages": {
 		"packages/pi-template": {
 			"release-type": "node",
 			"changelog-type": "default"
 		},
-		"packages/pi-monorepo-registry": {
+		"packages/pi-monorego-registry": {
+			"release-type": "node",
+			"changelog-type": "default"
+		},
+		"packages/pi-co-author": {
 			"release-type": "node",
 			"changelog-type": "default"
 		}

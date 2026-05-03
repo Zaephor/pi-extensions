@@ -9,12 +9,50 @@ permissions:
   pull-requests: write
 
 jobs:
+  generate-release-config:
+    runs-on: ubuntu-latest
+    outputs:
+      config: ${{ steps.generate.outputs.config }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate release-please config from packages
+        id: generate
+        run: |
+          # Scan packages/ for dirs with package.json + src/ (same logic as CI detect-packages)
+          # Build the release-please packages config dynamically
+          packages_config=$(
+            for d in packages/*/; do
+              [ -f "$d/package.json" ] && [ -d "$d/src" ] && echo "\"packages/${d#packages/}\""
+            done | jq -R -s -c '
+              split("\n") | map(select(length > 0)) | map(rtrimstr("/"))
+              | map({ key: ., value: { "release-type": "node", "changelog-type": "default" } })
+              | from_entries
+            '
+          )
+
+          # Preserve bootstrap-sha if it exists in the checked-in config
+          bootstrap_sha=$(jq -r '."bootstrap-sha" // empty' release-please-config.json)
+          if [ -n "$bootstrap_sha" ] && [ "$bootstrap_sha" != "null" ]; then
+            config=$(echo "$packages_config" | jq --arg sha "$bootstrap_sha" '. + {"bootstrap-sha": $sha}')
+          else
+            config="$packages_config"
+          fi
+
+          echo "config=$config" >> "$GITHUB_OUTPUT"
+
   release-please:
+    needs: generate-release-config
     runs-on: ubuntu-latest
     outputs:
       releases_created: ${{ steps.release.outputs.releases_created }}
       paths_released: ${{ steps.release.outputs.paths_released }}
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Write dynamic release-please config
+        run: echo '${{ needs.generate-release-config.outputs.config }}' > release-please-config.json
+
       - uses: googleapis/release-please-action@v4
         id: release
         with:
