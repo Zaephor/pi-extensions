@@ -10,7 +10,16 @@
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterAll } from "vitest";
+
+/** Resolve a path within a monorepo package from the shared test directory. */
+function resolveMonorepoPackagePath(pkg: string, subpath: string): string {
+	// shared/test/cross-runtime-helpers.ts -> monorepo root
+	const thisDir = path.dirname(fileURLToPath(import.meta.url));
+	const monorepoRoot = path.resolve(thisDir, "../..");
+	return path.join(monorepoRoot, "packages", pkg, subpath);
+}
 
 // ---------------------------------------------------------------------------
 // GSD SDK resolution
@@ -71,11 +80,30 @@ export async function withAgentDir<T>(agentDir: string, fn: () => Promise<T>): P
 	const saved = process.env.PI_PACKAGE_DIR;
 	delete process.env.PI_PACKAGE_DIR;
 	process.env.PI_CODING_AGENT_DIR = agentDir;
+	// Reset the registry's cached base dir so it re-resolves with the new env var
+	try {
+		const pathsMod = await import(
+			/* @vite-ignore */
+			resolveMonorepoPackagePath("pi-monorepo-registry", "src/paths.js")
+		);
+		if (pathsMod.resetRegistryBaseDir) pathsMod.resetRegistryBaseDir();
+	} catch {
+		// paths module not available in this context
+	}
 	try {
 		return await fn();
 	} finally {
 		delete process.env.PI_CODING_AGENT_DIR;
 		if (saved) process.env.PI_PACKAGE_DIR = saved;
+		try {
+			const pathsMod = await import(
+				/* @vite-ignore */
+				resolveMonorepoPackagePath("pi-monorepo-registry", "src/paths.js")
+			);
+			if (pathsMod.resetRegistryBaseDir) pathsMod.resetRegistryBaseDir();
+		} catch {
+			// paths module not available in this context
+		}
 	}
 }
 

@@ -9,7 +9,7 @@
 import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { getAgentDir } from "@mariozechner/pi-coding-agent";
+import { getCloneCacheDir } from "./paths.js";
 
 /**
  * Extract a short, human-friendly name from a git URL.
@@ -71,14 +71,6 @@ export function normalizeGitUrl(url: string): string {
  */
 export function isGitUrl(url: string): boolean {
 	return /^(https?:\/\/|git:\/\/|ssh:\/\/|git@|[^/]+:[^/]+\/)/.test(url.trim());
-}
-
-/**
- * Get a cache directory for cloned monorepo sources.
- */
-export function getCloneCacheDir(): string {
-	const agentDir = getAgentDir();
-	return join(agentDir, "monorepo-registry", "sources");
 }
 
 /**

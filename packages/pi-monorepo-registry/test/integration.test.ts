@@ -8,7 +8,7 @@ import { lstat, mkdir, readlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { FixtureMonorepo } from "./helpers/fixture";
 import { cleanupFixture, createFixtureMonorepo } from "./helpers/fixture";
 
@@ -87,9 +87,11 @@ describe("pi-monorepo-registry integration", () => {
 		for (const f of fixtures.splice(0)) {
 			await cleanupFixture(f);
 		}
+		// Reset cached base dir so next test re-resolves from env vars
+		const { resetRegistryBaseDir, getStateFilePath } = await import("../src/paths.js");
+		resetRegistryBaseDir();
 		// Clean up persisted registry state between tests
 		try {
-			const { getStateFilePath } = await import("../src/persistence.js");
 			const statePath = getStateFilePath();
 			if (existsSync(statePath)) {
 				unlinkSync(statePath);
@@ -97,6 +99,13 @@ describe("pi-monorepo-registry integration", () => {
 		} catch {
 			// Ignore — state file may not exist
 		}
+	});
+
+	// Reset cached base dir before each test too, in case a previous test's
+	// env var changes leaked into the cache
+	beforeEach(async () => {
+		const { resetRegistryBaseDir } = await import("../src/paths.js");
+		resetRegistryBaseDir();
 	});
 
 	it("factory initializes and registers all commands", async () => {
@@ -111,7 +120,9 @@ describe("pi-monorepo-registry integration", () => {
 	});
 
 	it("factory loads sub-extensions from active/ directory", async () => {
-		// Create a temp agent dir with an extension in monorepo-registry/active/
+		// Test loadActiveExtensions directly (not via the cached factory)
+		// since vitest caches module imports and the factory's closure captures
+		// _activeDir from the first test that imported the module.
 		const agentDir = join(tmpdir(), `pi-factory-load-${Date.now()}`);
 		const activeDir = join(agentDir, "monorepo-registry", "active");
 		await mkdir(activeDir, { recursive: true });
@@ -135,44 +146,25 @@ describe("pi-monorepo-registry integration", () => {
 		const extPkgPath = `${extFixture.packagesDir}/${extPkgDir}`;
 		await symlink(extPkgPath, join(activeDir, "factory-test-ext"));
 
-		// Point the agent dir env vars to our temp dir
-		const origGsd = process.env.GSD_CODING_AGENT_DIR;
-		const origPi = process.env.PI_CODING_AGENT_DIR;
-		process.env.GSD_CODING_AGENT_DIR = agentDir;
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		// Load directly via the loader module
+		const { loadActiveExtensions } = await import("../src/loader.js");
+		const tools = new Map();
+		const commands = new Map();
+		const mockApi = {
+			registerTool: (t: any) => tools.set(t.name, t),
+			registerCommand: (n: string, o: any) => commands.set(n, o),
+			on: () => {},
+			appendEntry: () => {},
+			registerShortcut: () => {},
+			registerFlag: () => {},
+			getFlag: () => undefined,
+		} as any;
 
-		try {
-			// Track what registerTool/registerCommand calls the sub-extension makes
-			const registeredTools: string[] = [];
-			const registeredCommands: string[] = [];
-
-			const mod = await import("../src/index.js");
-			const api = {
-				registerCommand(name: string, _options: any) {
-					registeredCommands.push(name);
-				},
-				registerTool(def: any) {
-					registeredTools.push(def.name);
-				},
-				on: () => {},
-				appendEntry: () => {},
-				registerShortcut: () => {},
-				registerFlag: () => {},
-				getFlag: () => undefined,
-			} as unknown as ExtensionAPI;
-
-			await mod.default(api);
-
-			// The factory should have loaded the sub-extension, which registers
-			// its own tools and commands via the mock API
-			expect(registeredTools).toContain("hello");
-			expect(registeredCommands).toContain("greet");
-		} finally {
-			if (origGsd !== undefined) process.env.GSD_CODING_AGENT_DIR = origGsd;
-			else delete process.env.GSD_CODING_AGENT_DIR;
-			if (origPi !== undefined) process.env.PI_CODING_AGENT_DIR = origPi;
-			else delete process.env.PI_CODING_AGENT_DIR;
-		}
+		const { loaded, errors } = await loadActiveExtensions(activeDir, mockApi);
+		expect(errors).toHaveLength(0);
+		expect(loaded).toContain("factory-test-ext");
+		expect(tools.has("hello")).toBe(true);
+		expect(commands.has("greet")).toBe(true);
 	});
 
 	it("session_start handler notifies extension loaded", async () => {

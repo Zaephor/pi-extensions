@@ -1,38 +1,18 @@
 /**
  * Persistence — load and save registry state to disk.
  *
- * State is stored as JSON in the agent data directory:
+ * State is stored as JSON in the registry data directory:
  *   ~/.pi/agent/monorepo-registry/state.json   (when running under pi)
  *   ~/.gsd/agent/monorepo-registry/state.json  (when running under gsd)
  *
- * The path is resolved via getAgentDir() which respects the running binary's
- * configDir setting (PI_PACKAGE_DIR env var → package.json piConfig → fallback to ~/.pi).
+ * Path resolution is centralized in paths.ts — this module just reads/writes.
  */
 
 import { existsSync, mkdirSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
-import { dirname, join } from "node:path";
-import { getAgentDir } from "@mariozechner/pi-coding-agent";
+import { dirname } from "node:path";
+import { getStateFilePath } from "./paths.js";
 import type { MonorepoSource, RegistryState } from "./types.js";
-
-/**
- * Resolve the agent directory, falling back gracefully if getAgentDir() fails.
- * This can happen in test environments or unusual loading contexts.
- */
-function resolveAgentDir(): string {
-	try {
-		return getAgentDir();
-	} catch {
-		// Fallback: use ~/.pi/agent/ as default
-		return join(homedir(), ".pi", "agent");
-	}
-}
-
-/** Get the path to the registry state file. */
-export function getStateFilePath(): string {
-	return join(resolveAgentDir(), "monorepo-registry", "state.json");
-}
 
 /**
  * Load registry state from disk.

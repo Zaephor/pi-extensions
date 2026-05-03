@@ -1,33 +1,21 @@
 /**
  * Activation module — manages symlink-based package activation in the
- * registry's managed directory, NOT in the standard extensions/ directory.
+ * registry's managed active/ directory, NOT in the standard extensions/ directory.
  *
  * Packages are "activated" by creating a symlink in:
  *   ~/.pi/agent/monorepo-registry/active/   (when running under pi)
  *   ~/.gsd/agent/monorepo-registry/active/  (when running under gsd)
  *
- * This avoids gsd's cross-scan of ~/.pi/agent/extensions/ — extensions
- * installed for pi only appear in pi's active/ directory, and vice versa.
- * The registry loads them at session_start using its own jiti-based loader.
+ * Path resolution is centralized in paths.ts — all scope-aware directory
+ * logic lives there, not here.
  */
 
 import { lstat, mkdir, readlink, symlink, unlink } from "node:fs/promises";
 import { dirname } from "node:path";
-import { getAgentDir } from "@mariozechner/pi-coding-agent";
+import { getExtensionsDir } from "./paths.js";
 import type { ActivationInfo, Scope } from "./types.js";
 
-/**
- * Resolve the registry's managed active/ directory for a given scope.
- *
- * @param scope - "global" for user-level, "local" for project-level.
- * @param cwd - Working directory (used for local scope). Defaults to process.cwd().
- * @returns Absolute path to the registry's active extensions directory.
- */
-export function getExtensionsDir(scope: Scope, cwd?: string): string {
-	const base = scope === "global" ? getAgentDir() : (cwd ?? process.cwd());
-	const suffix = "monorepo-registry/active";
-	return base.endsWith("/") ? `${base}${suffix}` : `${base}/${suffix}`;
-}
+export { getExtensionsDir } from "./paths.js";
 
 /**
  * Create a symlink activating a package in the registry's managed directory.
@@ -35,12 +23,6 @@ export function getExtensionsDir(scope: Scope, cwd?: string): string {
  * - Ensures the directory exists (mkdir -p).
  * - If a symlink already exists pointing to the same target, returns success (idempotent).
  * - If a symlink already exists pointing elsewhere, throws with conflict details.
- *
- * @param packagePath - Absolute path to the package directory to activate.
- * @param packageName - Package name (used as the symlink filename).
- * @param scope - "global" or "local".
- * @param cwd - Working directory for local scope resolution.
- * @returns ActivationInfo describing the created activation.
  */
 export async function createActivationSymlink(
 	packagePath: string,
@@ -99,9 +81,6 @@ export async function createActivationSymlink(
 /**
  * Remove an activation symlink for a package.
  *
- * @param packageName - Package name (symlink filename) to remove.
- * @param scope - "global" or "local".
- * @param cwd - Working directory for local scope resolution.
  * @returns true if the symlink was removed, false if it didn't exist.
  */
 export async function removeActivationSymlink(packageName: string, scope: Scope, cwd?: string): Promise<boolean> {
@@ -124,11 +103,6 @@ export async function removeActivationSymlink(packageName: string, scope: Scope,
 
 /**
  * Check if a package is currently activated (symlink exists).
- *
- * @param packageName - Package name to check.
- * @param scope - "global" or "local".
- * @param cwd - Working directory for local scope resolution.
- * @returns true if an activation symlink exists for this package.
  */
 export async function isActivated(packageName: string, scope: Scope, cwd?: string): Promise<boolean> {
 	const extensionsDir = getExtensionsDir(scope, cwd);

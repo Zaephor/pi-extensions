@@ -7,9 +7,10 @@
  */
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { createActivationSymlink, removeActivationSymlink } from "./activation.js";
+import { createActivationSymlink, getExtensionsDir, removeActivationSymlink } from "./activation.js";
 import { ensureNodeModules } from "./deps.js";
-import { getStateFilePath, loadState, saveState } from "./persistence.js";
+import { loadState, saveState } from "./persistence.js";
+import { getStateFilePath } from "./paths.js";
 import { ENTRY_TYPES, MonorepoRegistry } from "./registry.js";
 import type { MonorepoSource, Scope } from "./types.js";
 
@@ -23,6 +24,7 @@ export {
 	resolveSourceRoot,
 	urlToDirName,
 } from "./git.js";
+export { getCloneCacheDir, getExtensionsDir, getRegistryBaseDir, getStateFilePath } from "./paths.js";
 export { MonorepoRegistry } from "./registry.js";
 export type { MonorepoSource, PackageInfo, RegistryState } from "./types.js";
 
@@ -39,7 +41,6 @@ export default async function (pi: ExtensionAPI) {
 
 	// --- Load sub-extensions from the registry's managed active/ directory ---
 	// This runs in the factory (not session_start) so it fires on both startup and /reload.
-	const { getExtensionsDir } = await import("./activation.js");
 	const { discoverActiveExtensions, loadActiveExtensions } = await import("./loader.js");
 
 	const activeDir = getExtensionsDir("global");
