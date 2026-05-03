@@ -10,12 +10,12 @@ import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
 	gsdAvailable,
+	installViaRegistry,
 	isSymlinked,
+	loadViaGsd,
+	loadViaPi,
 	makeExtensionsDir,
 	makeTemp,
-	installViaRegistry,
-	loadViaPi,
-	loadViaGsd,
 	nextId,
 	resetIds,
 } from "../../../shared/test/cross-runtime-helpers.js";
@@ -56,9 +56,7 @@ describe("Scenario 1: Install pi-template via pi only", () => {
 		const result = await loadViaPi(piAgentDir);
 		expect(result.extensionsResult.errors).toHaveLength(0);
 
-		const ext = result.extensionsResult.extensions.find(
-			(e: any) => e.tools.has("hello"),
-		);
+		const ext = result.extensionsResult.extensions.find((e: any) => e.tools.has("hello"));
 		expect(ext).toBeDefined();
 		expect(ext!.commands.has("greet")).toBe(true);
 	});
@@ -91,9 +89,7 @@ describe.skipIf(!gsdAvailable)("Scenario 2: Install pi-template via gsd only", (
 		const result = await loadViaGsd(gsdAgentDir);
 		expect(result.extensionsResult.errors).toHaveLength(0);
 
-		const ext = result.extensionsResult.extensions.find(
-			(e: any) => e.tools.has("hello"),
-		);
+		const ext = result.extensionsResult.extensions.find((e: any) => e.tools.has("hello"));
 		expect(ext).toBeDefined();
 		expect(ext!.commands.has("greet")).toBe(true);
 	});
@@ -131,9 +127,7 @@ describe.skipIf(!gsdAvailable)("Scenario 3: Install pi-template in both pi and g
 
 	it("gsd loads without critical errors", async () => {
 		const result = await loadViaGsd(gsdAgentDir);
-		const critical = result.extensionsResult.errors.filter(
-			(e: any) => !e.error.includes("conflicts with"),
-		);
+		const critical = result.extensionsResult.errors.filter((e: any) => !e.error.includes("conflicts with"));
 		expect(critical).toHaveLength(0);
 	});
 });

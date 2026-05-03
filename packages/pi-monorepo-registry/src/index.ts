@@ -9,13 +9,20 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { createActivationSymlink, removeActivationSymlink } from "./activation.js";
 import { ensureNodeModules } from "./deps.js";
-import { extractShortName } from "./git.js";
-import { ENTRY_TYPES, MonorepoRegistry } from "./registry.js";
 import { loadState, saveState } from "./persistence.js";
-import type { MonorepoSource, RegistryState, Scope } from "./types.js";
+import { ENTRY_TYPES, MonorepoRegistry } from "./registry.js";
+import type { MonorepoSource, Scope } from "./types.js";
 
 export { discoverPackages, isPiCompatible } from "./discovery.js";
-export { extractShortName, getExtensionMonorepoRoot, isGitUrl, isSelfUrl, normalizeGitUrl, resolveSourceRoot, urlToDirName } from "./git.js";
+export {
+	extractShortName,
+	getExtensionMonorepoRoot,
+	isGitUrl,
+	isSelfUrl,
+	normalizeGitUrl,
+	resolveSourceRoot,
+	urlToDirName,
+} from "./git.js";
 export { MonorepoRegistry } from "./registry.js";
 export type { MonorepoSource, PackageInfo, RegistryState } from "./types.js";
 
@@ -81,7 +88,10 @@ export default async function (pi: ExtensionAPI) {
 		handler: async (args, ctx) => {
 			const rawArgs = args.trim();
 			if (!rawArgs) {
-				ctx.ui.notify("Usage: /monorepo-install <package> [-l]  or  /monorepo-install <owner/repo>/<package> [-l]", "error");
+				ctx.ui.notify(
+					"Usage: /monorepo-install <package> [-l]  or  /monorepo-install <owner/repo>/<package> [-l]",
+					"error",
+				);
 				return;
 			}
 
@@ -91,7 +101,10 @@ export default async function (pi: ExtensionAPI) {
 			const cleanedArgs = rawArgs.replace(/\s*-l\s*/, "").trim();
 
 			if (!cleanedArgs) {
-				ctx.ui.notify("Usage: /monorepo-install <package> [-l]  or  /monorepo-install <owner/repo>/<package> [-l]", "error");
+				ctx.ui.notify(
+					"Usage: /monorepo-install <package> [-l]  or  /monorepo-install <owner/repo>/<package> [-l]",
+					"error",
+				);
 				return;
 			}
 
@@ -144,7 +157,10 @@ export default async function (pi: ExtensionAPI) {
 						targetPath: info.targetPath,
 						timestamp: info.activatedAt,
 					});
-					ctx.ui.notify(`Installed ${info.packageName} from ${targetSource.shortName} (${scope} scope). Run /reload to activate.`, "info");
+					ctx.ui.notify(
+						`Installed ${info.packageName} from ${targetSource.shortName} (${scope} scope). Run /reload to activate.`,
+						"info",
+					);
 				} catch (err) {
 					ctx.ui.notify(
 						`Failed to activate ${packageName}: ${err instanceof Error ? err.message : String(err)}`,
@@ -169,13 +185,8 @@ export default async function (pi: ExtensionAPI) {
 
 				if (matchingSources.length > 1) {
 					// Ambiguous — block and force disambiguation
-					const options = matchingSources
-						.map((s) => `  /monorepo-install ${s.shortName}/${packageName}`)
-						.join("\n");
-					ctx.ui.notify(
-						`Package "${packageName}" exists in multiple sources. Please specify:\n${options}`,
-						"error",
-					);
+					const options = matchingSources.map((s) => `  /monorepo-install ${s.shortName}/${packageName}`).join("\n");
+					ctx.ui.notify(`Package "${packageName}" exists in multiple sources. Please specify:\n${options}`, "error");
 					return;
 				}
 
@@ -202,7 +213,10 @@ export default async function (pi: ExtensionAPI) {
 						targetPath: info.targetPath,
 						timestamp: info.activatedAt,
 					});
-					ctx.ui.notify(`Installed ${info.packageName} from ${source.shortName} (${scope} scope). Run /reload to activate.`, "info");
+					ctx.ui.notify(
+						`Installed ${info.packageName} from ${source.shortName} (${scope} scope). Run /reload to activate.`,
+						"info",
+					);
 				} catch (err) {
 					ctx.ui.notify(
 						`Failed to activate ${packageName}: ${err instanceof Error ? err.message : String(err)}`,
@@ -259,17 +273,17 @@ export default async function (pi: ExtensionAPI) {
 			const subcommand = parts[0];
 
 			if (!subcommand) {
-				ctx.ui.notify("Usage: /monorepo-registry add <url> [packages-root] | remove <source> | update [source]", "error");
+				ctx.ui.notify(
+					"Usage: /monorepo-registry add <url> [packages-root] | remove <source> | update [source]",
+					"error",
+				);
 				return;
 			}
 
 			if (subcommand === "add") {
 				const url = parts[1];
 				if (!url) {
-					ctx.ui.notify(
-						"Error: URL required. Usage: /monorepo-registry add <url> [packages-root]",
-						"error",
-					);
+					ctx.ui.notify("Error: URL required. Usage: /monorepo-registry add <url> [packages-root]", "error");
 					return;
 				}
 				const packagesRoot = parts[2] ?? "packages";
@@ -322,7 +336,10 @@ export default async function (pi: ExtensionAPI) {
 					}
 					for (const source of updated) {
 						const pkgCount = source.packages.length;
-						ctx.ui.notify(`Updated ${source.shortName}: ${pkgCount} package${pkgCount !== 1 ? "s" : ""} discovered.`, "info");
+						ctx.ui.notify(
+							`Updated ${source.shortName}: ${pkgCount} package${pkgCount !== 1 ? "s" : ""} discovered.`,
+							"info",
+						);
 					}
 				} catch (err) {
 					ctx.ui.notify(`Error updating source: ${err instanceof Error ? err.message : String(err)}`, "error");
@@ -336,6 +353,9 @@ export default async function (pi: ExtensionAPI) {
 	// --- session_start: announce extension loaded ---
 	pi.on("session_start", async (_event, ctx) => {
 		const sourceCount = registry.getSources().length;
-		ctx.ui.notify(`pi-monorepo-registry loaded — ${sourceCount} source${sourceCount !== 1 ? "s" : ""} registered ✅`, "info");
+		ctx.ui.notify(
+			`pi-monorepo-registry loaded — ${sourceCount} source${sourceCount !== 1 ? "s" : ""} registered ✅`,
+			"info",
+		);
 	});
 }

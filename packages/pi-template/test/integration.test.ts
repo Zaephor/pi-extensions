@@ -21,7 +21,7 @@ function createRecordingMock() {
 		string,
 		{ description?: string; handler: (args: string, ctx: any) => Promise<void> | void }
 	>();
-	const handlers = new Map<string, Function[]>();
+	const handlers = new Map<string, ((...args: never[]) => unknown)[]>();
 
 	const api = {
 		registerTool(tool: ToolDefinition) {

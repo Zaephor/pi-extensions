@@ -7,7 +7,7 @@
  *
  * GSD tests are skipped unless gsd-pi is resolvable.
  */
-import { existsSync, lstatSync, mkdtempSync, rmSync, mkdirSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterAll } from "vitest";
@@ -32,7 +32,9 @@ export { gsdApi };
 const tempDirs: string[] = [];
 afterAll(() => {
 	for (const dir of tempDirs) {
-		try { rmSync(dir, { recursive: true, force: true }); } catch {}
+		try {
+			rmSync(dir, { recursive: true, force: true });
+		} catch {}
 	}
 });
 
@@ -82,8 +84,7 @@ export async function withAgentDir<T>(agentDir: string, fn: () => Promise<T>): P
 // ---------------------------------------------------------------------------
 /** Load extensions via pi SDK from an agent dir (discovers from extensions/). */
 export async function loadViaPi(agentDir: string) {
-	const { createAgentSession, DefaultResourceLoader, SessionManager } =
-		await import("@mariozechner/pi-coding-agent");
+	const { createAgentSession, DefaultResourceLoader, SessionManager } = await import("@mariozechner/pi-coding-agent");
 	const loader = new DefaultResourceLoader({
 		cwd: process.cwd(),
 		agentDir,

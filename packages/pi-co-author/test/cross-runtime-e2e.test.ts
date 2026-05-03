@@ -9,12 +9,12 @@ import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
 	gsdAvailable,
+	installViaRegistry,
 	isSymlinked,
+	loadViaGsd,
+	loadViaPi,
 	makeExtensionsDir,
 	makeTemp,
-	installViaRegistry,
-	loadViaPi,
-	loadViaGsd,
 	nextId,
 	resetIds,
 } from "../../../shared/test/cross-runtime-helpers.js";
@@ -55,9 +55,7 @@ describe("Scenario 1: Install pi-co-author via pi only", () => {
 		const result = await loadViaPi(piAgentDir);
 		expect(result.extensionsResult.errors).toHaveLength(0);
 
-		const ext = result.extensionsResult.extensions.find(
-			(e: any) => e.flags.has("co-author-mode"),
-		);
+		const ext = result.extensionsResult.extensions.find((e: any) => e.flags.has("co-author-mode"));
 		expect(ext).toBeDefined();
 		expect(ext!.handlers.has("session_start")).toBe(true);
 		expect(ext!.handlers.has("tool_call")).toBe(true);
@@ -91,9 +89,7 @@ describe.skipIf(!gsdAvailable)("Scenario 2: Install pi-co-author via gsd only", 
 		const result = await loadViaGsd(gsdAgentDir);
 		expect(result.extensionsResult.errors).toHaveLength(0);
 
-		const ext = result.extensionsResult.extensions.find(
-			(e: any) => e.flags.has("co-author-mode"),
-		);
+		const ext = result.extensionsResult.extensions.find((e: any) => e.flags.has("co-author-mode"));
 		expect(ext).toBeDefined();
 		expect(ext!.handlers.has("session_start")).toBe(true);
 		expect(ext!.handlers.has("tool_call")).toBe(true);
@@ -132,9 +128,7 @@ describe.skipIf(!gsdAvailable)("Scenario 3: Install pi-co-author in both pi and 
 
 	it("gsd loads without critical errors", async () => {
 		const result = await loadViaGsd(gsdAgentDir);
-		const critical = result.extensionsResult.errors.filter(
-			(e: any) => !e.error.includes("conflicts with"),
-		);
+		const critical = result.extensionsResult.errors.filter((e: any) => !e.error.includes("conflicts with"));
 		expect(critical).toHaveLength(0);
 	});
 });

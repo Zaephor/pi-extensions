@@ -15,8 +15,8 @@ import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
 	gsdAvailable,
+	type loadViaPi,
 	makeTemp,
-	loadViaPi,
 	nextId,
 	resetIds,
 } from "../../../shared/test/cross-runtime-helpers.js";
@@ -25,8 +25,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const registrySrc = path.resolve(__dirname, "../src/index.ts");
-const repoRoot = path.resolve(__dirname, "../../..");
-const installTarget = "pi-co-author";
+const _repoRoot = path.resolve(__dirname, "../../..");
+const _installTarget = "pi-co-author";
 
 resetIds();
 
@@ -39,8 +39,7 @@ describe("Scenario 1: Load registry via pi SDK", () => {
 	beforeAll(async () => {
 		const agentDir = makeTemp(`pi-reg-${nextId()}`);
 		// Load registry as a native extension via additionalExtensionPaths
-		const { DefaultResourceLoader, createAgentSession, SessionManager } =
-			await import("@mariozechner/pi-coding-agent");
+		const { DefaultResourceLoader, createAgentSession, SessionManager } = await import("@mariozechner/pi-coding-agent");
 		const loader = new DefaultResourceLoader({
 			cwd: process.cwd(),
 			agentDir,
@@ -65,30 +64,22 @@ describe("Scenario 1: Load registry via pi SDK", () => {
 	});
 
 	it("registers /monorepo-install command", () => {
-		const has = result.extensionsResult.extensions.some(
-			(ext: any) => ext.commands.has("monorepo-install"),
-		);
+		const has = result.extensionsResult.extensions.some((ext: any) => ext.commands.has("monorepo-install"));
 		expect(has).toBe(true);
 	});
 
 	it("registers /monorepo-registry command", () => {
-		const has = result.extensionsResult.extensions.some(
-			(ext: any) => ext.commands.has("monorepo-registry"),
-		);
+		const has = result.extensionsResult.extensions.some((ext: any) => ext.commands.has("monorepo-registry"));
 		expect(has).toBe(true);
 	});
 
 	it("registers /monorepo-list command", () => {
-		const has = result.extensionsResult.extensions.some(
-			(ext: any) => ext.commands.has("monorepo-list"),
-		);
+		const has = result.extensionsResult.extensions.some((ext: any) => ext.commands.has("monorepo-list"));
 		expect(has).toBe(true);
 	});
 
 	it("registers /monorepo-remove command", () => {
-		const has = result.extensionsResult.extensions.some(
-			(ext: any) => ext.commands.has("monorepo-remove"),
-		);
+		const has = result.extensionsResult.extensions.some((ext: any) => ext.commands.has("monorepo-remove"));
 		expect(has).toBe(true);
 	});
 });
@@ -102,7 +93,7 @@ describe.skipIf(!gsdAvailable)("Scenario 2: Load registry via gsd SDK", () => {
 	beforeAll(async () => {
 		const agentDir = makeTemp(`gsd-reg-${nextId()}`);
 		const { DefaultResourceLoader, createAgentSession, SessionManager } = gsdAvailable
-			? await import("gsd-pi/packages/pi-coding-agent/dist/index.js").then(m => ({
+			? await import("gsd-pi/packages/pi-coding-agent/dist/index.js").then((m) => ({
 					DefaultResourceLoader: m.DefaultResourceLoader,
 					createAgentSession: m.createAgentSession,
 					SessionManager: m.SessionManager,
@@ -133,9 +124,7 @@ describe.skipIf(!gsdAvailable)("Scenario 2: Load registry via gsd SDK", () => {
 	});
 
 	it("registers all four commands", () => {
-		const ext = result.extensionsResult.extensions.find(
-			(e: any) => e.commands.has("monorepo-install"),
-		);
+		const ext = result.extensionsResult.extensions.find((e: any) => e.commands.has("monorepo-install"));
 		expect(ext).toBeDefined();
 		expect(ext!.commands.has("monorepo-registry")).toBe(true);
 		expect(ext!.commands.has("monorepo-list")).toBe(true);
@@ -146,4 +135,3 @@ describe.skipIf(!gsdAvailable)("Scenario 2: Load registry via gsd SDK", () => {
 // Note: Install-via-registry scenarios (pi-only, gsd-only, both) are covered by
 // pi-template and pi-co-author cross-runtime tests, which use the same
 // installViaRegistry helper. The registry's unique responsibility is native loading.
-

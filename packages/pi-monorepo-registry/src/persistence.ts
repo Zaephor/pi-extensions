@@ -11,8 +11,8 @@
 
 import { existsSync, mkdirSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
 import { homedir } from "node:os";
+import { dirname, join } from "node:path";
 import { getAgentDir } from "@mariozechner/pi-coding-agent";
 import type { MonorepoSource, RegistryState } from "./types.js";
 
@@ -55,16 +55,14 @@ export async function loadState(): Promise<RegistryState> {
 		}
 
 		// Ensure each source has required fields (migrate older state)
-		const sources: MonorepoSource[] = parsed.sources
-			.filter(isValidSource)
-			.map((s: Record<string, unknown>) => ({
-				url: s.url as string,
-				shortName: (s.shortName as string) || "",
-				packagesRoot: (s.packagesRoot as string) || "packages",
-				packages: Array.isArray(s.packages) ? s.packages : [],
-				lastUpdated: (s.lastUpdated as string) || new Date().toISOString(),
-				rootPath: (s.rootPath as string) || (s.url as string),
-			}));
+		const sources: MonorepoSource[] = parsed.sources.filter(isValidSource).map((s: Record<string, unknown>) => ({
+			url: s.url as string,
+			shortName: (s.shortName as string) || "",
+			packagesRoot: (s.packagesRoot as string) || "packages",
+			packages: Array.isArray(s.packages) ? s.packages : [],
+			lastUpdated: (s.lastUpdated as string) || new Date().toISOString(),
+			rootPath: (s.rootPath as string) || (s.url as string),
+		}));
 
 		return { sources };
 	} catch {

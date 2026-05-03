@@ -9,7 +9,6 @@
 import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import process from "node:process";
 import { getAgentDir } from "@mariozechner/pi-coding-agent";
 
 /**
