@@ -41,6 +41,25 @@ jobs:
 
           echo "config=$config" >> "$GITHUB_OUTPUT"
 
+      - name: Seed manifest entries for new packages
+        run: |
+          # Ensure every discovered package has an entry in .release-please-manifest.json.
+          # If a package is missing, seed it with the version from its package.json.
+          # Release-please manages versions after the initial entry.
+          manifest=$(cat .release-please-manifest.json)
+          for d in packages/*/; do
+            [ -f "$d/package.json" ] && [ -d "$d/src" ] || continue
+            pkg_path="${d%/}"
+            if echo "$manifest" | jq -e --arg p "$pkg_path" 'has($p)' > /dev/null 2>&1; then
+              continue
+            fi
+            version=$(jq -r '.version // "0.0.0"' "$d/package.json")
+            echo "Seeding manifest entry: $pkg_path -> $version"
+            manifest=$(echo "$manifest" | jq --arg p "$pkg_path" --arg v "$version" '. + {($p): $v}')
+          done
+          echo "$manifest" > .release-please-manifest.json
+          cat .release-please-manifest.json
+
   release-please:
     needs: generate-release-config
     runs-on: ubuntu-latest
@@ -52,6 +71,21 @@ jobs:
 
       - name: Write dynamic release-please config
         run: echo '${{ needs.generate-release-config.outputs.config }}' > release-please-config.json
+
+      - name: Seed manifest entries for new packages
+        run: |
+          manifest=$(cat .release-please-manifest.json)
+          for d in packages/*/; do
+            [ -f "$d/package.json" ] && [ -d "$d/src" ] || continue
+            pkg_path="${d%/}"
+            if echo "$manifest" | jq -e --arg p "$pkg_path" 'has($p)' > /dev/null 2>&1; then
+              continue
+            fi
+            version=$(jq -r '.version // "0.0.0"' "$d/package.json")
+            echo "Seeding manifest entry: $pkg_path -> $version"
+            manifest=$(echo "$manifest" | jq --arg p "$pkg_path" --arg v "$version" '. + {($p): $v}')
+          done
+          echo "$manifest" > .release-please-manifest.json
 
       - uses: googleapis/release-please-action@v4
         id: release
@@ -84,17 +118,12 @@ jobs:
         id: tag
         run: |
           tag=$(echo "${{ matrix.path }}" | sed 's|packages/||; s|/|--|g')
-          # For root-level packages the tag is just the path; release-please uses
-          # the component name from manifest config, so fall back to the GitHub
-          # release that was just created by matching the version.
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Upload tarball to GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Find the release for this package. release-please tags take the form
-          # <component-name>-v<version> for non-root packages or v<version> for root.
           pkg_version=$(jq -r '.version' "${{ matrix.path }}/package.json")
           release_tag=$(gh release list --limit 20 --json tagName --jq ".[].tagName" | grep -E "${{ steps.tag.outputs.tag }}-v${pkg_version}$|v${pkg_version}$" | head -1)
           if [ -z "$release_tag" ]; then
