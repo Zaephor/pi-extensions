@@ -17,12 +17,30 @@ import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync } from "
 import { dirname, join } from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import jiti from "jiti";
+import { ensureNodeModules } from "./deps.js";
 
 /** Information about a discovered extension. */
 interface DiscoveredExtension {
 	name: string;
 	path: string;
 	entryPoint: string;
+}
+
+/**
+ * Find the monorepo root by walking up from a package directory looking
+ * for a package-lock.json or lockfile (indicates the npm install root).
+ */
+function findMonorepoRoot(pkgDir: string): string | undefined {
+	let dir = pkgDir;
+	for (let i = 0; i < 10; i++) {
+		if (existsSync(join(dir, "package-lock.json")) || existsSync(join(dir, "npm-shrinkwrap.json"))) {
+			return dir;
+		}
+		const parent = dirname(dir);
+		if (parent === dir) break;
+		dir = parent;
+	}
+	return undefined;
 }
 
 /**
@@ -83,6 +101,24 @@ export async function loadActiveExtensions(
 	const discovered = discoverActiveExtensions(activeDir);
 	const loaded: string[] = [];
 	const errors: Array<{ name: string; error: string }> = [];
+
+	// Ensure node_modules exists at the monorepo root(s).
+	// Group extensions by their monorepo root and install once per root.
+	const rootsInstalled = new Set<string>();
+	for (const ext of discovered) {
+		const root = findMonorepoRoot(ext.path);
+		if (root && !rootsInstalled.has(root)) {
+			try {
+				ensureNodeModules(root);
+			} catch (err) {
+				errors.push({
+					name: ext.name,
+					error: `npm install failed: ${err instanceof Error ? err.message : String(err)}`,
+				});
+			}
+			rootsInstalled.add(root);
+		}
+	}
 
 	for (const ext of discovered) {
 		try {
