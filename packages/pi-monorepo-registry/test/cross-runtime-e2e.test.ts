@@ -26,11 +26,18 @@ const __dirname = path.dirname(__filename);
 const piCoAuthorDir = path.resolve(__dirname, "../../pi-co-author");
 const piCoAuthorSrc = path.join(piCoAuthorDir, "src/index.ts");
 
-// Try gsd
+// Try gsd — look for the sub-package both as a hoisted @gsd/pi-coding-agent
+// and inside the gsd-pi umbrella package
 let gsdApi: any = null;
 try {
 	gsdApi = await import("@gsd/pi-coding-agent");
-} catch {}
+} catch {
+	try {
+		gsdApi = await import("gsd-pi/packages/pi-coding-agent/dist/index.js");
+	} catch {
+		// not installed — gsd tests will be skipped
+	}
+}
 const gsdAvailable = gsdApi !== null;
 
 const tempDirs: string[] = [];
