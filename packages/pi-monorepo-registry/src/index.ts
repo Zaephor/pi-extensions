@@ -363,19 +363,29 @@ export default async function (pi: ExtensionAPI) {
 		},
 	});
 
-	// --- session_start: report loaded sub-extensions ---
+	// --- session_start: display loaded sub-extensions alongside pi's startup ---
 	pi.on("session_start", async (_event, ctx) => {
+		const sourceCount = registry.getSources().length;
+
 		if (_loadedExtensions.length > 0) {
-			ctx.ui.notify(
-				`Loaded ${_loadedExtensions.length} extension${_loadedExtensions.length !== 1 ? "s" : ""}: ${_loadedExtensions.join(", ")}`,
-				"info",
-			);
-		}
-		for (const err of _loadErrors) {
-			ctx.ui.notify(`Failed to load ${err.name}: ${err.error}`, "error");
+			// Display in a format similar to pi's [Extensions] startup banner
+			const lines = [`[Registry Extensions]`];
+			for (const name of _loadedExtensions) {
+				lines.push(`  ${name}`);
+			}
+			if (_loadErrors.length > 0) {
+				lines.push("");
+				for (const err of _loadErrors) {
+					lines.push(`  ⚠ ${err.name}: ${err.error}`);
+				}
+			}
+			ctx.ui.notify(lines.join("\n"), "info");
+		} else if (_loadErrors.length > 0) {
+			for (const err of _loadErrors) {
+				ctx.ui.notify(`Failed to load ${err.name}: ${err.error}`, "error");
+			}
 		}
 
-		const sourceCount = registry.getSources().length;
 		ctx.ui.notify(
 			`pi-monorepo-registry loaded — ${sourceCount} source${sourceCount !== 1 ? "s" : ""} registered ✅`,
 			"info",
