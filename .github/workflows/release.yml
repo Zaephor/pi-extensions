@@ -23,9 +23,12 @@ jobs:
           # Build the release-please packages config dynamically
           packages_config=$(
             for d in packages/*/; do
-              [ -f "$d/package.json" ] && [ -d "$d/src" ] && echo "\"packages/${d#packages/}\""
+              [ -f "$d/package.json" ] && [ -d "$d/src" ] || continue
+              # Strip trailing slash and packages/ prefix
+              pkg_path="${d%/}"
+              echo "$pkg_path"
             done | jq -R -s -c '
-              split("\n") | map(select(length > 0)) | map(rtrimstr("/"))
+              split("\n") | map(select(length > 0))
               | map({ key: ., value: { "release-type": "node", "changelog-type": "default" } })
               | from_entries
             '
@@ -39,7 +42,11 @@ jobs:
             config="$packages_config"
           fi
 
-          echo "config=$config" >> "$GITHUB_OUTPUT"
+          # Use heredoc delimiter for multi-line output (GITHUB_OUTPUT multiline format)
+          delimiter="$(openssl rand -hex 16)"
+          echo "config<<${delimiter}" >> "$GITHUB_OUTPUT"
+          echo "$config" >> "$GITHUB_OUTPUT"
+          echo "${delimiter}" >> "$GITHUB_OUTPUT"
 
       - name: Seed manifest entries for new packages
         run: |
@@ -70,7 +77,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Write dynamic release-please config
-        run: echo '${{ needs.generate-release-config.outputs.config }}' > release-please-config.json
+        run: |
+          # Write the generated config — use printf to avoid echo interpreting escape sequences
+          printf '%s\n' '${{ needs.generate-release-config.outputs.config }}' > release-please-config.json
 
       - name: Seed manifest entries for new packages
         run: |
