@@ -3,7 +3,20 @@
  */
 
 import { Type } from "@mariozechner/pi-ai";
-import { defineTool, type ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ToolDefinition } from "@mariozechner/pi-coding-agent";
+import type { TSchema } from "typebox";
+
+/**
+ * Type-safe tool definition helper. defineTool() from pi-coding-agent is a
+ * type-only identity function — it just helps TypeScript infer parameter types.
+ * When running under runtimes that don't export it (e.g. gsd), we provide a
+ * compatible fallback.
+ */
+function defineTool<TParams extends TSchema, TDetails = unknown, TState = any>(
+	tool: ToolDefinition<TParams, TDetails, TState>,
+): ToolDefinition<TParams, TDetails, TState> {
+	return tool;
+}
 
 const helloTool = defineTool({
 	name: "hello",

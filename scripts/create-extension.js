@@ -115,7 +115,19 @@ function generateSrcIndex(name) {
  */
 
 import { Type } from "@mariozechner/pi-ai";
-import { defineTool, type ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ToolDefinition } from "@mariozechner/pi-coding-agent";
+import type { TSchema } from "typebox";
+
+/**
+ * Type-safe tool definition helper. Compatible with both pi and gsd runtimes.
+ * defineTool() from pi-coding-agent is a type-only identity function — this
+ * local version provides the same type inference without requiring the export.
+ */
+function defineTool<TParams extends TSchema, TDetails = unknown, TState = any>(
+	tool: ToolDefinition<TParams, TDetails, TState>,
+): ToolDefinition<TParams, TDetails, TState> {
+	return tool;
+}
 
 const ${name.replace(/-([a-z])/g, (_, c) => c.toUpperCase())}Tool = defineTool({
 	name: "${name}",
