@@ -405,30 +405,20 @@ export default async function (pi: ExtensionAPI) {
 	pi.on("session_start", async (_event, ctx) => {
 		const sourceCount = registry.getSources().length;
 
-		if (_loadedExtensions.length > 0) {
-			const lines = [`[Registry Extensions]`];
-			for (const name of _loadedExtensions) {
-				lines.push(`  ${name}`);
-			}
-			if (_loadErrors.length > 0) {
-				lines.push("");
-				for (const err of _loadErrors) {
-					lines.push(`  ⚠ ${err.name}: ${err.error}`);
-				}
-			}
-			ctx.ui.notify(lines.join("\n"), "info");
-		} else if (_loadErrors.length > 0) {
-			const lines = [`[Registry Extensions]`];
-			lines.push("  (none loaded)");
-			for (const err of _loadErrors) {
-				lines.push(`  ⚠ ${err.name}: ${err.error}`);
-			}
-			ctx.ui.notify(lines.join("\n"), "error");
+		const lines = ["[Registry Extensions]"];
+		for (const name of _loadedExtensions) {
+			lines.push(`  ${name}`);
 		}
-
-		ctx.ui.notify(
-			`pi-monorepo-registry — ${sourceCount} source${sourceCount !== 1 ? "s" : ""} | active: ${_activeDir} | loaded: ${_loadedExtensions.length}${_loadErrors.length > 0 ? ` | errors: ${_loadErrors.map((e) => `${e.name}: ${e.error}`).join(", ")}` : ""}`,
-			"info",
+		if (_loadedExtensions.length === 0) {
+			lines.push("  (none loaded)");
+		}
+		for (const err of _loadErrors) {
+			lines.push(`  ⚠ ${err.name}: ${err.error}`);
+		}
+		lines.push(
+			`${sourceCount} source${sourceCount !== 1 ? "s" : ""} | active: ${_activeDir} | loaded: ${_loadedExtensions.length}${_loadErrors.length > 0 ? ` | errors: ${_loadErrors.map((e) => `${e.name}: ${e.error}`).join(", ")}` : ""}`,
 		);
+
+		ctx.ui.notify(lines.join("\n"), _loadErrors.length > 0 ? "warning" : "info");
 	});
 }

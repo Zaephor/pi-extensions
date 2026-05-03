@@ -186,7 +186,7 @@ describe("pi-monorepo-registry integration", () => {
 		const [handler] = handlers.get("session_start")!;
 		await handler({}, ctx as any);
 		expect(notified[0][1]).toBe("info");
-		expect(notified[0][0]).toContain("pi-monorepo-registry");
+		expect(notified[0][0]).toContain("[Registry Extensions]");
 		expect(notified[0][0]).toContain("loaded: 0");
 	});
 
