@@ -2,24 +2,36 @@
  * Persistence — load and save registry state to disk.
  *
  * State is stored as JSON in the agent data directory:
- *   ~/.pi/agent/monorepo-registry/state.json
+ *   ~/.pi/agent/monorepo-registry/state.json   (when running under pi)
+ *   ~/.gsd/agent/monorepo-registry/state.json  (when running under gsd)
+ *
+ * The path is resolved via getAgentDir() which respects the running binary's
+ * configDir setting (PI_PACKAGE_DIR env var → package.json piConfig → fallback to ~/.pi).
  */
 
-import { existsSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { existsSync, mkdirSync } from "node:fs";
+import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import process from "node:process";
+import { homedir } from "node:os";
 import { getAgentDir } from "@mariozechner/pi-coding-agent";
 import type { MonorepoSource, RegistryState } from "./types.js";
 
+/**
+ * Resolve the agent directory, falling back gracefully if getAgentDir() fails.
+ * This can happen in test environments or unusual loading contexts.
+ */
+function resolveAgentDir(): string {
+	try {
+		return getAgentDir();
+	} catch {
+		// Fallback: use ~/.pi/agent/ as default
+		return join(homedir(), ".pi", "agent");
+	}
+}
+
 /** Get the path to the registry state file. */
 export function getStateFilePath(): string {
-	try {
-		return join(getAgentDir(), "monorepo-registry", "state.json");
-	} catch {
-		// Fallback for environments where getAgentDir() is not available
-		return join(process.cwd(), ".monorepo-registry-state.json");
-	}
+	return join(resolveAgentDir(), "monorepo-registry", "state.json");
 }
 
 /**
@@ -62,12 +74,13 @@ export async function loadState(): Promise<RegistryState> {
 
 /**
  * Save registry state to disk.
- * Creates the directory if it doesn't exist.
+ * Creates the directory synchronously to avoid async mkdir race conditions.
  */
 export async function saveState(state: RegistryState): Promise<void> {
 	const filePath = getStateFilePath();
 
-	await mkdir(dirname(filePath), { recursive: true });
+	// Ensure directory exists synchronously (mkdir -p)
+	mkdirSync(dirname(filePath), { recursive: true });
 
 	// Serialize — strip non-essential fields from packages to keep file small
 	const serializable = {
