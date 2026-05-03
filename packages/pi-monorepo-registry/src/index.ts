@@ -350,8 +350,22 @@ export default async function (pi: ExtensionAPI) {
 		},
 	});
 
-	// --- session_start: announce extension loaded ---
+	// --- session_start: load sub-extensions and announce ---
 	pi.on("session_start", async (_event, ctx) => {
+		// Load extensions from the registry's managed active/ directory
+		const { getExtensionsDir } = await import("./activation.js");
+		const { loadActiveExtensions } = await import("./loader.js");
+
+		const activeDir = getExtensionsDir("global", ctx.cwd);
+		const { loaded, errors } = await loadActiveExtensions(activeDir, pi);
+
+		if (loaded.length > 0) {
+			ctx.ui.notify(`Loaded ${loaded.length} extension${loaded.length !== 1 ? "s" : ""}: ${loaded.join(", ")}`, "info");
+		}
+		for (const err of errors) {
+			ctx.ui.notify(`Failed to load ${err.name}: ${err.error}`, "error");
+		}
+
 		const sourceCount = registry.getSources().length;
 		ctx.ui.notify(
 			`pi-monorepo-registry loaded — ${sourceCount} source${sourceCount !== 1 ? "s" : ""} registered ✅`,

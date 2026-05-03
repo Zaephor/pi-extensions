@@ -47,8 +47,8 @@ export function makeTemp(prefix: string): string {
 // ---------------------------------------------------------------------------
 // Filesystem helpers
 // ---------------------------------------------------------------------------
-export function isSymlinked(extensionsDir: string, name: string): boolean {
-	const linkPath = path.join(extensionsDir, name);
+export function isSymlinked(activeDir: string, name: string): boolean {
+	const linkPath = path.join(activeDir, name);
 	if (!existsSync(linkPath)) return false;
 	try {
 		return lstatSync(linkPath).isSymbolicLink();
@@ -57,8 +57,8 @@ export function isSymlinked(extensionsDir: string, name: string): boolean {
 	}
 }
 
-export function makeExtensionsDir(agentDir: string): string {
-	const extDir = path.join(agentDir, "extensions");
+export function makeActiveDir(agentDir: string): string {
+	const extDir = path.join(agentDir, "monorepo-registry", "active");
 	mkdirSync(extDir, { recursive: true });
 	return extDir;
 }

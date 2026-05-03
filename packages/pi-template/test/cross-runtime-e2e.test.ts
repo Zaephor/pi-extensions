@@ -14,7 +14,7 @@ import {
 	isSymlinked,
 	loadViaGsd,
 	loadViaPi,
-	makeExtensionsDir,
+	makeActiveDir,
 	makeTemp,
 	nextId,
 	resetIds,
@@ -39,26 +39,39 @@ describe("Scenario 1: Install pi-template via pi only", () => {
 	beforeAll(async () => {
 		piAgentDir = makeTemp(`pi-tpl-${nextId()}`);
 		gsdAgentDir = makeTemp(`gsd-tpl-${nextId()}`);
-		makeExtensionsDir(piAgentDir);
+		makeActiveDir(piAgentDir);
 
 		await installViaRegistry(piAgentDir, pkgName, registrySrc, repoRoot);
 	});
 
 	it("symlink in pi agent dir", () => {
-		expect(isSymlinked(path.join(piAgentDir, "extensions"), pkgName)).toBe(true);
+		expect(isSymlinked(path.join(piAgentDir, "monorepo-registry/active"), pkgName)).toBe(true);
 	});
 
 	it("no symlink in gsd agent dir", () => {
-		expect(isSymlinked(path.join(gsdAgentDir, "extensions"), pkgName)).toBe(false);
+		expect(isSymlinked(path.join(gsdAgentDir, "monorepo-registry/active"), pkgName)).toBe(false);
 	});
 
-	it("loads via pi SDK with hello tool and greet command", async () => {
-		const result = await loadViaPi(piAgentDir);
-		expect(result.extensionsResult.errors).toHaveLength(0);
+	it("registry can load extension from active/ dir", async () => {
+		const { loadActiveExtensions } = await import(path.resolve(__dirname, "../../pi-monorepo-registry/src/loader.ts"));
+		const tools = new Map();
+		const commands = new Map();
+		const mockApi = {
+			registerTool: (t: any) => tools.set(t.name, t),
+			registerCommand: (n: string, o: any) => commands.set(n, o),
+			registerFlag: () => {},
+			on: () => {},
+			registerShortcut: () => {},
+			getFlag: () => undefined,
+			appendEntry: () => {},
+		} as any;
 
-		const ext = result.extensionsResult.extensions.find((e: any) => e.tools.has("hello"));
-		expect(ext).toBeDefined();
-		expect(ext!.commands.has("greet")).toBe(true);
+		const activeDir = path.join(piAgentDir, "monorepo-registry", "active");
+		const { loaded, errors } = await loadActiveExtensions(activeDir, mockApi);
+		expect(errors).toHaveLength(0);
+		expect(loaded).toContain("pi-template");
+		expect(tools.has("hello")).toBe(true);
+		expect(commands.has("greet")).toBe(true);
 	});
 });
 
@@ -72,26 +85,39 @@ describe.skipIf(!gsdAvailable)("Scenario 2: Install pi-template via gsd only", (
 	beforeAll(async () => {
 		piAgentDir = makeTemp(`pi-tpl-${nextId()}`);
 		gsdAgentDir = makeTemp(`gsd-tpl-${nextId()}`);
-		makeExtensionsDir(gsdAgentDir);
+		makeActiveDir(gsdAgentDir);
 
 		await installViaRegistry(gsdAgentDir, pkgName, registrySrc, repoRoot);
 	});
 
 	it("symlink in gsd agent dir", () => {
-		expect(isSymlinked(path.join(gsdAgentDir, "extensions"), pkgName)).toBe(true);
+		expect(isSymlinked(path.join(gsdAgentDir, "monorepo-registry/active"), pkgName)).toBe(true);
 	});
 
 	it("no symlink in pi agent dir", () => {
-		expect(isSymlinked(path.join(piAgentDir, "extensions"), pkgName)).toBe(false);
+		expect(isSymlinked(path.join(piAgentDir, "monorepo-registry/active"), pkgName)).toBe(false);
 	});
 
-	it("loads via gsd SDK with hello tool and greet command", async () => {
-		const result = await loadViaGsd(gsdAgentDir);
-		expect(result.extensionsResult.errors).toHaveLength(0);
+	it("registry can load extension from active/ dir", async () => {
+		const { loadActiveExtensions } = await import(path.resolve(__dirname, "../../pi-monorepo-registry/src/loader.ts"));
+		const tools = new Map();
+		const commands = new Map();
+		const mockApi = {
+			registerTool: (t: any) => tools.set(t.name, t),
+			registerCommand: (n: string, o: any) => commands.set(n, o),
+			registerFlag: () => {},
+			on: () => {},
+			registerShortcut: () => {},
+			getFlag: () => undefined,
+			appendEntry: () => {},
+		} as any;
 
-		const ext = result.extensionsResult.extensions.find((e: any) => e.tools.has("hello"));
-		expect(ext).toBeDefined();
-		expect(ext!.commands.has("greet")).toBe(true);
+		const activeDir = path.join(gsdAgentDir, "monorepo-registry", "active");
+		const { loaded, errors } = await loadActiveExtensions(activeDir, mockApi);
+		expect(errors).toHaveLength(0);
+		expect(loaded).toContain("pi-template");
+		expect(tools.has("hello")).toBe(true);
+		expect(commands.has("greet")).toBe(true);
 	});
 });
 
@@ -105,19 +131,19 @@ describe.skipIf(!gsdAvailable)("Scenario 3: Install pi-template in both pi and g
 	beforeAll(async () => {
 		piAgentDir = makeTemp(`pi-tpl-${nextId()}`);
 		gsdAgentDir = makeTemp(`gsd-tpl-${nextId()}`);
-		makeExtensionsDir(piAgentDir);
-		makeExtensionsDir(gsdAgentDir);
+		makeActiveDir(piAgentDir);
+		makeActiveDir(gsdAgentDir);
 
 		await installViaRegistry(piAgentDir, pkgName, registrySrc, repoRoot);
 		await installViaRegistry(gsdAgentDir, pkgName, registrySrc, repoRoot);
 	});
 
 	it("symlink in pi agent dir", () => {
-		expect(isSymlinked(path.join(piAgentDir, "extensions"), pkgName)).toBe(true);
+		expect(isSymlinked(path.join(piAgentDir, "monorepo-registry/active"), pkgName)).toBe(true);
 	});
 
 	it("symlink in gsd agent dir", () => {
-		expect(isSymlinked(path.join(gsdAgentDir, "extensions"), pkgName)).toBe(true);
+		expect(isSymlinked(path.join(gsdAgentDir, "monorepo-registry/active"), pkgName)).toBe(true);
 	});
 
 	it("pi loads without errors", async () => {

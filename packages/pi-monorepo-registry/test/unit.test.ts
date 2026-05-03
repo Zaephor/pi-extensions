@@ -425,18 +425,18 @@ describe("activation", () => {
 	describe("getExtensionsDir", () => {
 		it("returns correct path for global scope", () => {
 			const dir = getExtensionsDir("global");
-			// Should end with /extensions and be under the agent dir
-			expect(dir).toMatch(/\/extensions$/);
+			// Should end with /monorepo-registry/active and be under the agent dir
+			expect(dir).toMatch(/monorepo-registry\/active$/);
 		});
 
 		it("returns correct path for local scope", () => {
 			const dir = getExtensionsDir("local", "/my/project");
-			expect(dir).toBe("/my/project/extensions");
+			expect(dir).toBe("/my/project/monorepo-registry/active");
 		});
 
 		it("uses process.cwd() as default for local scope", () => {
 			const dir = getExtensionsDir("local");
-			expect(dir).toBe(`${process.cwd()}/extensions`);
+			expect(dir).toBe(`${process.cwd()}/monorepo-registry/active`);
 		});
 	});
 
