@@ -39,7 +39,7 @@ export default async function (pi: ExtensionAPI) {
 	// --- Load sub-extensions from the registry's managed active/ directory ---
 	// This runs in the factory (not session_start) so it fires on both startup and /reload.
 	const { getExtensionsDir } = await import("./activation.js");
-	const { loadActiveExtensions } = await import("./loader.js");
+	const { discoverActiveExtensions, loadActiveExtensions } = await import("./loader.js");
 
 	const activeDir = getExtensionsDir("global");
 	const { loaded, errors } = await loadActiveExtensions(activeDir, pi);
@@ -49,49 +49,82 @@ export default async function (pi: ExtensionAPI) {
 	const _loadedExtensions = loaded;
 	const _loadErrors = errors;
 
-	// --- /monorepo-list: list all registered monorepos and their discovered packages ---
+	// --- /monorepo-list: show sources, available packages, and installed packages ---
 	pi.registerCommand("monorepo-list", {
-		description: "List all registered monorepos and their discovered packages",
+		description: "List registered sources, available packages, and installed packages",
 		handler: async (_args, ctx) => {
 			const sources = registry.getSources();
+			const globalInstalled = discoverActiveExtensions(getExtensionsDir("global", ctx.cwd));
+			const localInstalled = discoverActiveExtensions(getExtensionsDir("local", ctx.cwd));
 
-			if (sources.length === 0) {
-				ctx.ui.notify("No monorepo sources registered. Use /monorepo-registry add <url> to add one.", "info");
+			if (sources.length === 0 && globalInstalled.length === 0 && localInstalled.length === 0) {
+				ctx.ui.notify(
+					"No monorepo sources registered and no packages installed. Use /monorepo-registry add <url> to add a source.",
+					"info",
+				);
 				return;
 			}
 
-			// Detect duplicate package names across sources
-			const pkgCounts = new Map<string, string[]>();
-			for (const source of sources) {
-				for (const pkg of source.packages) {
-					const owners = pkgCounts.get(pkg.name) ?? [];
-					owners.push(source.shortName);
-					pkgCounts.set(pkg.name, owners);
-				}
-			}
-
-			const lines: string[] = ["Registered monorepo sources:", ""];
-
-			for (const source of sources) {
-				lines.push(`📦 ${source.shortName}`);
-				lines.push(`   url: ${source.url}`);
-				lines.push(`   packages-root: ${source.packagesRoot}`);
-				lines.push(`   last updated: ${source.lastUpdated}`);
-
-				if (source.packages.length === 0) {
-					lines.push("   (no packages discovered)");
-				} else {
+			// --- Sources & available packages ---
+			if (sources.length > 0) {
+				const pkgCounts = new Map<string, string[]>();
+				for (const source of sources) {
 					for (const pkg of source.packages) {
-						const desc = pkg.description ? ` — ${pkg.description}` : "";
-						const dup = (pkgCounts.get(pkg.name)?.length ?? 0) > 1 ? " ⚠️ duplicate" : "";
-						lines.push(`   • ${pkg.name}@${pkg.version}${desc}${dup}`);
+						const owners = pkgCounts.get(pkg.name) ?? [];
+						owners.push(source.shortName);
+						pkgCounts.set(pkg.name, owners);
 					}
 				}
 
-				lines.push("");
+				const lines: string[] = ["Sources:", ""];
+
+				for (const source of sources) {
+					lines.push(`📦 ${source.shortName}`);
+					lines.push(`   url: ${source.url}`);
+					lines.push(`   packages-root: ${source.packagesRoot}`);
+					lines.push(`   last updated: ${source.lastUpdated}`);
+
+					if (source.packages.length === 0) {
+						lines.push("   (no packages discovered)");
+					} else {
+						for (const pkg of source.packages) {
+							const desc = pkg.description ? ` — ${pkg.description}` : "";
+							const dup = (pkgCounts.get(pkg.name)?.length ?? 0) > 1 ? " ⚠️ duplicate" : "";
+							lines.push(`   • ${pkg.name}@${pkg.version}${desc}${dup}`);
+						}
+					}
+
+					lines.push("");
+				}
+
+				ctx.ui.notify(lines.join("\n"), "info");
+			} else {
+				ctx.ui.notify("No sources registered.", "info");
 			}
 
-			ctx.ui.notify(lines.join("\n"), "info");
+			// --- Installed packages ---
+			if (globalInstalled.length > 0 || localInstalled.length > 0) {
+				const lines: string[] = ["Installed:", ""];
+
+				if (globalInstalled.length > 0) {
+					lines.push("  global:");
+					for (const ext of globalInstalled) {
+						lines.push(`    • ${ext.name}`);
+					}
+				}
+
+				if (localInstalled.length > 0) {
+					if (globalInstalled.length > 0) lines.push("");
+					lines.push("  local:");
+					for (const ext of localInstalled) {
+						lines.push(`    • ${ext.name}`);
+					}
+				}
+
+				ctx.ui.notify(lines.join("\n"), "info");
+			} else {
+				ctx.ui.notify("No packages installed. Use /monorepo-install <package> to install one.", "info");
+			}
 		},
 	});
 
