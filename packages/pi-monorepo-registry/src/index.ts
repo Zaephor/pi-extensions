@@ -36,6 +36,19 @@ export default async function (pi: ExtensionAPI) {
 	const savedState = await loadState();
 	const registry = new MonorepoRegistry(pi, savedState);
 
+	// --- Load sub-extensions from the registry's managed active/ directory ---
+	// This runs in the factory (not session_start) so it fires on both startup and /reload.
+	const { getExtensionsDir } = await import("./activation.js");
+	const { loadActiveExtensions } = await import("./loader.js");
+
+	const activeDir = getExtensionsDir("global");
+	const { loaded, errors } = await loadActiveExtensions(activeDir, pi);
+
+	// We can't call ctx.ui.notify here (no context yet), so just store results
+	// for the session_start notification
+	const _loadedExtensions = loaded;
+	const _loadErrors = errors;
+
 	// --- /monorepo-list: list all registered monorepos and their discovered packages ---
 	pi.registerCommand("monorepo-list", {
 		description: "List all registered monorepos and their discovered packages",
@@ -350,19 +363,15 @@ export default async function (pi: ExtensionAPI) {
 		},
 	});
 
-	// --- session_start: load sub-extensions and announce ---
+	// --- session_start: report loaded sub-extensions ---
 	pi.on("session_start", async (_event, ctx) => {
-		// Load extensions from the registry's managed active/ directory
-		const { getExtensionsDir } = await import("./activation.js");
-		const { loadActiveExtensions } = await import("./loader.js");
-
-		const activeDir = getExtensionsDir("global", ctx.cwd);
-		const { loaded, errors } = await loadActiveExtensions(activeDir, pi);
-
-		if (loaded.length > 0) {
-			ctx.ui.notify(`Loaded ${loaded.length} extension${loaded.length !== 1 ? "s" : ""}: ${loaded.join(", ")}`, "info");
+		if (_loadedExtensions.length > 0) {
+			ctx.ui.notify(
+				`Loaded ${_loadedExtensions.length} extension${_loadedExtensions.length !== 1 ? "s" : ""}: ${_loadedExtensions.join(", ")}`,
+				"info",
+			);
 		}
-		for (const err of errors) {
+		for (const err of _loadErrors) {
 			ctx.ui.notify(`Failed to load ${err.name}: ${err.error}`, "error");
 		}
 
