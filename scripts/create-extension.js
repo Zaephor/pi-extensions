@@ -164,7 +164,7 @@ A pi extension.
 
 \`\`\`sh
 pi install git:github.com/Zaephor/pi-extensions
-/monorego-install ${name}
+/monorepo-install ${name}
 /reload
 \`\`\`
 

@@ -24,7 +24,7 @@ The extension also registers a `session_start` handler that confirms it loaded a
 
 ```sh
 pi install git:github.com/Zaephor/pi-extensions
-/monorego-install pi-co-author
+/monorepo-install pi-co-author
 /reload
 ```
 

@@ -318,7 +318,7 @@ describe("extension factory", () => {
 			const notified: string[] = [];
 			const ctx = createMockContext({ notify: (msg: string) => notified.push(msg) });
 			const listCmd =
-				commands.find((c) => c.name === "monorego-list") ?? commands.find((c) => c.name === "monorepo-list")!;
+				commands.find((c) => c.name === "monorepo-list") ?? commands.find((c) => c.name === "monorepo-list")!;
 			await listCmd.handler("", ctx as any);
 
 			expect(notified[0]).toContain("No monorepo sources registered");

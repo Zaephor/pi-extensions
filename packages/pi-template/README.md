@@ -14,7 +14,7 @@ pi-template registers three things with the pi agent runtime:
 
 ```sh
 pi install git:github.com/Zaephor/pi-extensions
-/monorego-install pi-template
+/monorepo-install pi-template
 /reload
 ```
 

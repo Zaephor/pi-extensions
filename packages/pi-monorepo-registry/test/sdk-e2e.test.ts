@@ -141,7 +141,7 @@ describe("SDK e2e — reload cycle (symlink activation and removal)", () => {
 		const extensionsDir = path.join(reloadTempDir, "extensions");
 		fs.mkdirSync(extensionsDir);
 
-		// Simulate /monorego-install: create symlink → pi-template package directory
+		// Simulate /monorepo-install: create symlink → pi-template package directory
 		const symlinkPath = path.join(extensionsDir, "pi-template");
 		fs.symlinkSync(piTemplateDir, symlinkPath);
 
@@ -229,7 +229,7 @@ describe("SDK e2e — reload cycle (symlink activation and removal)", () => {
 		}
 		expect(foundInitially).toBe(true);
 
-		// Simulate /monorego-remove: delete the symlink
+		// Simulate /monorepo-remove: delete the symlink
 		fs.unlinkSync(symlinkPath);
 		expect(fs.existsSync(symlinkPath)).toBe(false);
 

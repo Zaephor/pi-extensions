@@ -6,7 +6,7 @@
 			"release-type": "node",
 			"changelog-type": "default"
 		},
-		"packages/pi-monorego-registry": {
+		"packages/pi-monorepo-registry": {
 			"release-type": "node",
 			"changelog-type": "default"
 		},

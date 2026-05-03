@@ -23,7 +23,7 @@ pi install git:github.com/Zaephor/pi-extensions
 
 > If you have the full pi-extensions monorepo cloned, you can also activate it directly:
 > ```
-> /monorego-install pi-monorepo-registry
+> /monorepo-install pi-monorepo-registry
 > /reload
 > ```
 
@@ -60,13 +60,13 @@ Shows all registered sources and their discovered packages with name, version, a
 By default installs to **global** scope (available in all projects). Use the `-l` flag for local scope (current project only):
 
 ```
-/monorego-install my-extension -l
+/monorepo-install my-extension -l
 ```
 
 You can specify a source explicitly with `source/package` format:
 
 ```
-/monorego-install my-monorepo/my-extension
+/monorepo-install my-monorepo/my-extension
 ```
 
 After installing, run `/reload` to activate the extension.
@@ -83,7 +83,7 @@ Supports `-l` for local scope. Run `/reload` after removing to deactivate.
 
 ```
 /monorepo-registry update              # Update all sources
-/monorego-registry update my-monorepo  # Update a specific source
+/monorepo-registry update my-monorepo  # Update a specific source
 ```
 
 Re-scans the monorepo for new or changed packages.
@@ -91,7 +91,7 @@ Re-scans the monorepo for new or changed packages.
 ### Remove a source
 
 ```
-/monorego-registry remove my-monorepo
+/monorepo-registry remove my-monorepo
 ```
 
 ## Configuration
