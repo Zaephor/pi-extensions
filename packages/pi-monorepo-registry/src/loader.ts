@@ -7,40 +7,23 @@
  * 2. Using jiti to import the .ts entry point
  * 3. Calling the default export (factory function) with the real ExtensionAPI
  *
- * Module resolution: jiti resolves bare imports (e.g. @mariozechner/pi-ai)
- * by walking up from the entry point's directory to find node_modules. In a
- * monorepo, node_modules lives at the root, so this works as long as jiti's
- * base URL is the extension's path, not the loader's path.
+ * Module resolution: extensions declare @mariozechner/* packages as peerDeps
+ * because pi provides them at runtime. We mirror pi's own getAliases() approach
+ * — resolving these from pi's running process via import.meta.resolve and
+ * passing them as jiti aliases so extensions share pi's module instances.
  */
 
 import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import jiti from "jiti";
-import { ensureNodeModules } from "./deps.js";
 
 /** Information about a discovered extension. */
 interface DiscoveredExtension {
 	name: string;
 	path: string;
 	entryPoint: string;
-}
-
-/**
- * Find the monorepo root by walking up from a package directory looking
- * for a package-lock.json or lockfile (indicates the npm install root).
- */
-function findMonorepoRoot(pkgDir: string): string | undefined {
-	let dir = pkgDir;
-	for (let i = 0; i < 10; i++) {
-		if (existsSync(join(dir, "package-lock.json")) || existsSync(join(dir, "npm-shrinkwrap.json"))) {
-			return dir;
-		}
-		const parent = dirname(dir);
-		if (parent === dir) break;
-		dir = parent;
-	}
-	return undefined;
 }
 
 /**
@@ -91,6 +74,57 @@ export function discoverActiveExtensions(activeDir: string): DiscoveredExtension
 }
 
 /**
+ * Build jiti alias map for runtime peer dependencies, mirroring pi's own
+ * getAliases() approach. Resolves @mariozechner/* and typebox from pi's
+ * running process so extensions share the same module instances.
+ *
+ * import.meta.resolve handles ESM packages correctly (unlike require.resolve).
+ */
+function buildRuntimeAliases(): Record<string, string> {
+	const resolve = (specifier: string): string | undefined => {
+		try {
+			const url = import.meta.resolve(specifier);
+			return url.startsWith("file://") ? fileURLToPath(url) : url;
+		} catch {
+			return undefined;
+		}
+	};
+
+	const aliases: Record<string, string> = {};
+
+	// Core pi packages
+	for (const mod of [
+		"@mariozechner/pi-ai",
+		"@mariozechner/pi-ai/oauth",
+		"@mariozechner/pi-coding-agent",
+		"@mariozechner/pi-tui",
+		"@mariozechner/pi-agent-core",
+	]) {
+		const resolved = resolve(mod);
+		if (resolved) aliases[mod] = resolved;
+	}
+
+	// Typebox (both import names)
+	const typebox = resolve("typebox");
+	if (typebox) {
+		aliases.typebox = typebox;
+		aliases["@sinclair/typebox"] = typebox;
+	}
+	const typeboxCompile = resolve("typebox/compile");
+	if (typeboxCompile) {
+		aliases["typebox/compile"] = typeboxCompile;
+		aliases["@sinclair/typebox/compile"] = typeboxCompile;
+	}
+	const typeboxValue = resolve("typebox/value");
+	if (typeboxValue) {
+		aliases["typebox/value"] = typeboxValue;
+		aliases["@sinclair/typebox/value"] = typeboxValue;
+	}
+
+	return aliases;
+}
+
+/**
  * Load extensions from the active/ directory and call their factories with
  * the real ExtensionAPI. Returns load results for diagnostics.
  */
@@ -102,31 +136,15 @@ export async function loadActiveExtensions(
 	const loaded: string[] = [];
 	const errors: Array<{ name: string; error: string }> = [];
 
-	// Ensure node_modules exists at the monorepo root(s).
-	// Group extensions by their monorepo root and install once per root.
-	const rootsInstalled = new Set<string>();
-	for (const ext of discovered) {
-		const root = findMonorepoRoot(ext.path);
-		if (root && !rootsInstalled.has(root)) {
-			try {
-				ensureNodeModules(root);
-			} catch (err) {
-				errors.push({
-					name: ext.name,
-					error: `npm install failed: ${err instanceof Error ? err.message : String(err)}`,
-				});
-			}
-			rootsInstalled.add(root);
-		}
-	}
+	// Build aliases from pi's runtime so peer deps resolve to pi's own copies
+	const runtimeAliases = buildRuntimeAliases();
 
 	for (const ext of discovered) {
 		try {
-			// Create jiti scoped to the extension's directory so bare imports
-			// (e.g. @mariozechner/pi-ai) resolve via the monorepo root's node_modules.
 			const j = jiti(dirname(ext.entryPoint), {
 				interopDefault: true,
 				cache: true,
+				alias: runtimeAliases,
 			});
 
 			const mod = j(ext.entryPoint);
