@@ -427,7 +427,7 @@ export default async function (pi: ExtensionAPI) {
 		}
 
 		ctx.ui.notify(
-			`pi-monorepo-registry — ${sourceCount} source${sourceCount !== 1 ? "s" : ""} | active: ${_activeDir} | loaded: ${_loadedExtensions.length} errors: ${_loadErrors.length}`,
+			`pi-monorepo-registry — ${sourceCount} source${sourceCount !== 1 ? "s" : ""} | active: ${_activeDir} | loaded: ${_loadedExtensions.length}${_loadErrors.length > 0 ? ` | errors: ${_loadErrors.map((e) => `${e.name}: ${e.error}`).join(", ")}` : ""}`,
 			"info",
 		);
 	});
