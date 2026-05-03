@@ -9,7 +9,7 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { createActivationSymlink, removeActivationSymlink } from "./activation.js";
 import { ensureNodeModules } from "./deps.js";
-import { loadState, saveState } from "./persistence.js";
+import { getStateFilePath, loadState, saveState } from "./persistence.js";
 import { ENTRY_TYPES, MonorepoRegistry } from "./registry.js";
 import type { MonorepoSource, Scope } from "./types.js";
 
@@ -34,6 +34,7 @@ function persist(registry: MonorepoRegistry): Promise<void> {
 export default async function (pi: ExtensionAPI) {
 	// Load persisted state from disk
 	const savedState = await loadState();
+	const _stateFilePath = getStateFilePath();
 	const registry = new MonorepoRegistry(pi, savedState);
 
 	// --- Load sub-extensions from the registry's managed active/ directory ---
@@ -61,7 +62,7 @@ export default async function (pi: ExtensionAPI) {
 
 			if (sources.length === 0 && globalInstalled.length === 0 && localInstalled.length === 0) {
 				ctx.ui.notify(
-					`No monorepo sources registered and no packages installed.\nGlobal active dir: ${globalActiveDir}\nLocal active dir: ${localActiveDir}\n\nUse /monorepo-registry add <url> to add a source.`,
+					`No monorepo sources registered and no packages installed.\nState: ${_stateFilePath}\nGlobal active dir: ${globalActiveDir}\nLocal active dir: ${localActiveDir}\n\nUse /monorepo-registry add <url> to add a source.`,
 					"info",
 				);
 				return;
@@ -416,7 +417,7 @@ export default async function (pi: ExtensionAPI) {
 			lines.push(`  ⚠ ${err.name}: ${err.error}`);
 		}
 		lines.push(
-			`${sourceCount} source${sourceCount !== 1 ? "s" : ""} | active: ${_activeDir} | loaded: ${_loadedExtensions.length}${_loadErrors.length > 0 ? ` | errors: ${_loadErrors.map((e) => `${e.name}: ${e.error}`).join(", ")}` : ""}`,
+			`${sourceCount} source${sourceCount !== 1 ? "s" : ""} | state: ${_stateFilePath} | loaded: ${_loadedExtensions.length}${_loadErrors.length > 0 ? ` | errors: ${_loadErrors.map((e) => `${e.name}: ${e.error}`).join(", ")}` : ""}`,
 		);
 
 		ctx.ui.notify(lines.join("\n"), _loadErrors.length > 0 ? "warning" : "info");
