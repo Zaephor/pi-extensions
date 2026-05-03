@@ -60,6 +60,24 @@ export async function createFixtureMonorepo(
 
 		if (pkg.piExtensions) {
 			pkgJson.pi = { extensions: pkg.piExtensions };
+
+			// Create a minimal extension entry point for each declared extension path
+			for (const extPath of pkg.piExtensions) {
+				const fullPath = join(pkgDir, extPath);
+				await mkdir(join(fullPath, ".."), { recursive: true });
+
+				// Generate a factory that registers a tool and command using the package name
+				const _toolName = dirName.replace(/[^a-z0-9-]/g, "-");
+				await writeFile(
+					fullPath,
+					[
+						`export default async function (pi) {`,
+						`  pi.registerTool({ name: "hello", label: "hello", description: "Test tool from ${dirName}", parameters: {}, execute: async () => ({ content: [], details: undefined }) });`,
+						`  pi.registerCommand("greet", { description: "Test command", handler: async (_args, ctx) => { ctx.ui.notify("Hello from ${dirName}!", "info"); } });`,
+						`}`,
+					].join("\n"),
+				);
+			}
 		}
 
 		await writeFile(join(pkgDir, "package.json"), JSON.stringify(pkgJson, null, "\t"));

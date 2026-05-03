@@ -107,7 +107,72 @@ describe("pi-monorepo-registry integration", () => {
 		expect(commands.has("monorepo-list")).toBe(true);
 		expect(commands.has("monorepo-install")).toBe(true);
 		expect(commands.has("monorepo-remove")).toBe(true);
-		expect(commands.has("monorego-registry") || commands.has("monorepo-registry")).toBe(true);
+		expect(commands.has("monorepo-registry")).toBe(true);
+	});
+
+	it("factory loads sub-extensions from active/ directory", async () => {
+		// Create a temp agent dir with an extension in monorepo-registry/active/
+		const agentDir = join(tmpdir(), `pi-factory-load-${Date.now()}`);
+		const activeDir = join(agentDir, "monorepo-registry", "active");
+		await mkdir(activeDir, { recursive: true });
+		fixtures.push({ rootDir: agentDir, packagesDir: agentDir });
+
+		// Create a fixture monorepo with an installable extension
+		const extFixture = await createFixtureMonorepo("factory-ext", [
+			{
+				name: "factory-test-ext",
+				version: "1.0.0",
+				piExtensions: ["./src/index.ts"],
+			},
+		]);
+		fixtures.push(extFixture);
+
+		// Symlink the extension into active/
+		const { symlink } = await import("node:fs/promises");
+		const { readdir } = await import("node:fs/promises");
+		const entries = await readdir(extFixture.packagesDir);
+		const extPkgDir = entries[0];
+		const extPkgPath = `${extFixture.packagesDir}/${extPkgDir}`;
+		await symlink(extPkgPath, join(activeDir, "factory-test-ext"));
+
+		// Point the agent dir env vars to our temp dir
+		const origGsd = process.env.GSD_CODING_AGENT_DIR;
+		const origPi = process.env.PI_CODING_AGENT_DIR;
+		process.env.GSD_CODING_AGENT_DIR = agentDir;
+		process.env.PI_CODING_AGENT_DIR = agentDir;
+
+		try {
+			// Track what registerTool/registerCommand calls the sub-extension makes
+			const registeredTools: string[] = [];
+			const registeredCommands: string[] = [];
+
+			const mod = await import("../src/index.js");
+			const api = {
+				registerCommand(name: string, _options: any) {
+					registeredCommands.push(name);
+				},
+				registerTool(def: any) {
+					registeredTools.push(def.name);
+				},
+				on: () => {},
+				appendEntry: () => {},
+				registerShortcut: () => {},
+				registerFlag: () => {},
+				getFlag: () => undefined,
+			} as unknown as ExtensionAPI;
+
+			await mod.default(api);
+
+			// The factory should have loaded the sub-extension, which registers
+			// its own tools and commands via the mock API
+			expect(registeredTools).toContain("hello");
+			expect(registeredCommands).toContain("greet");
+		} finally {
+			if (origGsd !== undefined) process.env.GSD_CODING_AGENT_DIR = origGsd;
+			else delete process.env.GSD_CODING_AGENT_DIR;
+			if (origPi !== undefined) process.env.PI_CODING_AGENT_DIR = origPi;
+			else delete process.env.PI_CODING_AGENT_DIR;
+		}
 	});
 
 	it("session_start handler notifies extension loaded", async () => {
