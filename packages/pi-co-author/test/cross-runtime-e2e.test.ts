@@ -70,12 +70,16 @@ describe("Scenario 1: Install pi-co-author via pi only", () => {
 		} as any;
 
 		const activeDir = path.join(piAgentDir, "monorepo-registry", "active");
-		const { loaded, errors } = await loadActiveExtensions(activeDir, mockApi);
-		expect(errors).toHaveLength(0);
-		expect(loaded).toContain("pi-co-author");
+		const result = await loadActiveExtensions(activeDir, mockApi);
+		expect(result.errors).toHaveLength(0);
+		expect(result.loaded).toContain("pi-co-author");
 		expect(flags.has("co-author-mode")).toBe(true);
-		expect(handlers.has("session_start")).toBe(true);
-		expect(handlers.has("tool_call")).toBe(true);
+		// Event handlers are captured by the loader's proxy API, not the test mock
+		expect(result.subExtensions.length).toBeGreaterThan(0);
+		const subExt = result.subExtensions.find((s: any) => s.name === "pi-co-author");
+		expect(subExt).toBeDefined();
+		expect(subExt.handlers.has("session_start")).toBe(true);
+		expect(subExt.handlers.has("tool_call")).toBe(true);
 	});
 });
 

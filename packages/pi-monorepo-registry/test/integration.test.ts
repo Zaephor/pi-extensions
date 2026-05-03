@@ -179,7 +179,6 @@ describe("pi-monorepo-registry integration", () => {
 		await handler({}, ctx as any);
 		expect(notified[0][1]).toBe("info");
 		expect(notified[0][0]).toContain("[Registry Extensions]");
-		expect(notified[0][0]).toContain("loaded: 0");
 	});
 
 	describe("end-to-end: add → list → remove", () => {

@@ -9,8 +9,8 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { createActivationSymlink, getExtensionsDir, removeActivationSymlink } from "./activation.js";
 import { ensureNodeModules } from "./deps.js";
-import { loadState, saveState } from "./persistence.js";
 import { getStateFilePath } from "./paths.js";
+import { loadState, saveState } from "./persistence.js";
 import { ENTRY_TYPES, MonorepoRegistry } from "./registry.js";
 import type { MonorepoSource, Scope } from "./types.js";
 
@@ -44,12 +44,48 @@ export default async function (pi: ExtensionAPI) {
 	const { discoverActiveExtensions, loadActiveExtensions } = await import("./loader.js");
 
 	const activeDir = getExtensionsDir("global");
-	const { loaded, errors } = await loadActiveExtensions(activeDir, pi);
+	const { loaded, errors, subExtensions } = await loadActiveExtensions(activeDir, pi);
 
 	// Store results for session_start display
 	const _loadedExtensions = loaded;
 	const _loadErrors = errors;
 	const _activeDir = activeDir;
+
+	// --- Forward pi events to sub-extensions ---
+	// Sub-extensions are loaded via jiti, not pi's native loader, so pi's
+	// extension runner doesn't dispatch events to them. The registry acts as
+	// a bridge: it registers its own handlers with pi and forwards to any
+	// sub-extension that registered for the same event.
+	const eventTypes = new Set<string>();
+	for (const sub of subExtensions) {
+		for (const eventType of sub.handlers.keys()) {
+			eventTypes.add(eventType);
+		}
+	}
+
+	for (const eventType of eventTypes) {
+		// Skip session_start — the registry's own session_start handler already
+		// displays loaded sub-extensions. Sub-extensions' session_start handlers
+		// would only produce redundant notifications that overwrite the banner.
+		if (eventType === "session_start") continue;
+
+		(pi.on as (event: string, handler: any) => void)(eventType, async (event: any, ctx: any) => {
+			for (const sub of subExtensions) {
+				const handlers = sub.handlers.get(eventType);
+				if (!handlers) continue;
+				for (const handler of handlers) {
+					try {
+						await handler(event, ctx);
+					} catch (err) {
+						ctx.ui.notify?.(
+							`⚠ ${sub.name} ${eventType} handler error: ${err instanceof Error ? err.message : String(err)}`,
+							"error",
+						);
+					}
+				}
+			}
+		});
+	}
 
 	// --- /monorepo-list: show sources, available packages, and installed packages ---
 	pi.registerCommand("monorepo-list", {
@@ -103,7 +139,7 @@ export default async function (pi: ExtensionAPI) {
 
 				ctx.ui.notify(lines.join("\n"), "info");
 			} else {
-				ctx.ui.notify("No sources registered.", "info");
+				ctx.ui.notify("No monorepo sources registered.", "info");
 			}
 
 			// --- Installed packages ---
