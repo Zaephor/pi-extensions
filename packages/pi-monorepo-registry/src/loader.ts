@@ -7,12 +7,14 @@
  * 2. Using jiti to import the .ts entry point
  * 3. Calling the default export (factory function) with the real ExtensionAPI
  *
- * This runs at session_start, so sub-extension registrations (tools, commands,
- * flags, event handlers) are active for the session.
+ * Module resolution: jiti resolves bare imports (e.g. @mariozechner/pi-ai)
+ * by walking up from the entry point's directory to find node_modules. In a
+ * monorepo, node_modules lives at the root, so this works as long as jiti's
+ * base URL is the extension's path, not the loader's path.
  */
 
 import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import jiti from "jiti";
 
@@ -82,15 +84,15 @@ export async function loadActiveExtensions(
 	const loaded: string[] = [];
 	const errors: Array<{ name: string; error: string }> = [];
 
-	// Create jiti instance with ESM interop
-	const j = jiti(import.meta.url, {
-		interopDefault: true,
-		// Use cache for performance
-		cache: true,
-	});
-
 	for (const ext of discovered) {
 		try {
+			// Create jiti scoped to the extension's directory so bare imports
+			// (e.g. @mariozechner/pi-ai) resolve via the monorepo root's node_modules.
+			const j = jiti(dirname(ext.entryPoint), {
+				interopDefault: true,
+				cache: true,
+			});
+
 			const mod = j(ext.entryPoint);
 			const factory = mod.default ?? mod;
 
