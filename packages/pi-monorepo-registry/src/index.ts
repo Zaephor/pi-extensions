@@ -44,22 +44,24 @@ export default async function (pi: ExtensionAPI) {
 	const activeDir = getExtensionsDir("global");
 	const { loaded, errors } = await loadActiveExtensions(activeDir, pi);
 
-	// We can't call ctx.ui.notify here (no context yet), so just store results
-	// for the session_start notification
+	// Store results for session_start display
 	const _loadedExtensions = loaded;
 	const _loadErrors = errors;
+	const _activeDir = activeDir;
 
 	// --- /monorepo-list: show sources, available packages, and installed packages ---
 	pi.registerCommand("monorepo-list", {
 		description: "List registered sources, available packages, and installed packages",
 		handler: async (_args, ctx) => {
 			const sources = registry.getSources();
-			const globalInstalled = discoverActiveExtensions(getExtensionsDir("global", ctx.cwd));
-			const localInstalled = discoverActiveExtensions(getExtensionsDir("local", ctx.cwd));
+			const globalActiveDir = getExtensionsDir("global", ctx.cwd);
+			const localActiveDir = getExtensionsDir("local", ctx.cwd);
+			const globalInstalled = discoverActiveExtensions(globalActiveDir);
+			const localInstalled = discoverActiveExtensions(localActiveDir);
 
 			if (sources.length === 0 && globalInstalled.length === 0 && localInstalled.length === 0) {
 				ctx.ui.notify(
-					"No monorepo sources registered and no packages installed. Use /monorepo-registry add <url> to add a source.",
+					`No monorepo sources registered and no packages installed.\nGlobal active dir: ${globalActiveDir}\nLocal active dir: ${localActiveDir}\n\nUse /monorepo-registry add <url> to add a source.`,
 					"info",
 				);
 				return;
@@ -104,7 +106,7 @@ export default async function (pi: ExtensionAPI) {
 
 			// --- Installed packages ---
 			if (globalInstalled.length > 0 || localInstalled.length > 0) {
-				const lines: string[] = ["Installed:", ""];
+				const lines: string[] = [`Installed (${globalActiveDir}):`, ""];
 
 				if (globalInstalled.length > 0) {
 					lines.push("  global:");
@@ -123,7 +125,10 @@ export default async function (pi: ExtensionAPI) {
 
 				ctx.ui.notify(lines.join("\n"), "info");
 			} else {
-				ctx.ui.notify("No packages installed. Use /monorepo-install <package> to install one.", "info");
+				ctx.ui.notify(
+					`No packages installed.\nGlobal active dir: ${globalActiveDir}\nUse /monorepo-install <package> to install one.`,
+					"info",
+				);
 			}
 		},
 	});
@@ -401,7 +406,6 @@ export default async function (pi: ExtensionAPI) {
 		const sourceCount = registry.getSources().length;
 
 		if (_loadedExtensions.length > 0) {
-			// Display in a format similar to pi's [Extensions] startup banner
 			const lines = [`[Registry Extensions]`];
 			for (const name of _loadedExtensions) {
 				lines.push(`  ${name}`);
@@ -414,13 +418,16 @@ export default async function (pi: ExtensionAPI) {
 			}
 			ctx.ui.notify(lines.join("\n"), "info");
 		} else if (_loadErrors.length > 0) {
+			const lines = [`[Registry Extensions]`];
+			lines.push("  (none loaded)");
 			for (const err of _loadErrors) {
-				ctx.ui.notify(`Failed to load ${err.name}: ${err.error}`, "error");
+				lines.push(`  ⚠ ${err.name}: ${err.error}`);
 			}
+			ctx.ui.notify(lines.join("\n"), "error");
 		}
 
 		ctx.ui.notify(
-			`pi-monorepo-registry loaded — ${sourceCount} source${sourceCount !== 1 ? "s" : ""} registered ✅`,
+			`pi-monorepo-registry — ${sourceCount} source${sourceCount !== 1 ? "s" : ""} | active: ${_activeDir} | loaded: ${_loadedExtensions.length} errors: ${_loadErrors.length}`,
 			"info",
 		);
 	});

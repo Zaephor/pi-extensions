@@ -185,7 +185,9 @@ describe("pi-monorepo-registry integration", () => {
 		const ctx = testContext((...args: any[]) => notified.push(args));
 		const [handler] = handlers.get("session_start")!;
 		await handler({}, ctx as any);
-		expect(notified).toEqual([["pi-monorepo-registry loaded — 0 sources registered ✅", "info"]]);
+		expect(notified[0][1]).toBe("info");
+		expect(notified[0][0]).toContain("pi-monorepo-registry");
+		expect(notified[0][0]).toContain("loaded: 0");
 	});
 
 	describe("end-to-end: add → list → remove", () => {
