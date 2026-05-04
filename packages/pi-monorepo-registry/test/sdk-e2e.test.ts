@@ -94,12 +94,12 @@ describe("SDK e2e — pi-monorepo-registry extension via createAgentSession", ()
 		expect(found).toBe(true);
 	});
 
-	it("registers exactly one command", () => {
+	it("registers two commands", () => {
 		let totalCommands = 0;
 		for (const ext of extensionsResult.extensions) {
 			totalCommands += ext.commands.size;
 		}
-		expect(totalCommands).toBe(1);
+		expect(totalCommands).toBe(2);
 	});
 });
 

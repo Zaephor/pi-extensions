@@ -2,8 +2,9 @@
  * Integration tests — verify full extension loading and end-to-end flows
  * using a fixture monorepo on the real filesystem.
  *
- * Tests the /monorego-registry command (add/remove/list/update).
- * Package install/remove commands come in S02.
+ * Tests both commands:
+ *   /monorego-registry — add/remove/list/update sources
+ *   /monorego-package  — install/remove/update/list packages
  */
 
 import { existsSync, unlinkSync } from "node:fs";
@@ -110,16 +111,17 @@ describe("pi-monorepo-registry integration", () => {
 		resetRegistryBaseDir();
 	});
 
-	it("factory initializes and registers /monorego-registry command", async () => {
+	it("factory initializes and registers /monorego-registry and /monorego-package commands", async () => {
 		const mod = await import("../src/index.js");
 		const { api, commands } = createRecordingMock();
 		await mod.default(api);
 
 		expect(commands.has("monorego-registry")).toBe(true);
-		expect(commands.size).toBe(1);
+		expect(commands.has("monorego-package")).toBe(true);
+		expect(commands.size).toBe(2);
 	});
 
-	it("session_start handler shows source count", async () => {
+	it("session_start handler shows source and package count", async () => {
 		const mod = await import("../src/index.js");
 		const { api, handlers } = createRecordingMock();
 		await mod.default(api);
@@ -132,6 +134,7 @@ describe("pi-monorepo-registry integration", () => {
 		expect(notified[0][1]).toBe("info");
 		expect(notified[0][0]).toContain("[Registry]");
 		expect(notified[0][0]).toContain("0 source");
+		expect(notified[0][0]).toContain("0 package");
 	});
 
 	describe("end-to-end: add → list → remove", () => {
@@ -252,6 +255,260 @@ describe("pi-monorepo-registry integration", () => {
 			await regCmd.handler("", ctx as any);
 
 			expect(notified[0][0]).toContain("Usage:");
+		});
+	});
+
+	describe("/monorego-package command", () => {
+		it("install --dev with fixture monorepo installs and registers symlink", async () => {
+			const fixture = await createFixtureMonorepo("pkg-dev", [
+				{ name: "test-plugin", version: "1.0.0", piExtensions: ["./src/index.ts"] },
+			]);
+			fixtures.push(fixture);
+
+			const mod = await import("../src/index.js");
+			const { api, commands, entries } = createRecordingMock();
+			await mod.default(api);
+
+			const notified: any[] = [];
+			const ctx = testContext((...args: any[]) => notified.push(args));
+			const pkgCmd = commands.get("monorego-package")!;
+
+			const localPath = join(fixture.packagesDir, "test-plugin");
+			await pkgCmd.handler(`install test-plugin --dev ${localPath}`, ctx as any);
+
+			// Should notify success with /reload reminder
+			expect(notified.length).toBe(1);
+			expect(notified[0][0]).toContain("test-plugin");
+			expect(notified[0][0]).toContain("installed");
+			expect(notified[0][0]).toContain("/reload");
+			expect(notified[0][1]).toBe("info");
+
+			// Should record event
+			const installedEntry = entries.find((e) => e.type === "monorepo-package-installed");
+			expect(installedEntry).toBeDefined();
+			expect((installedEntry!.data as any).packageName).toBe("test-plugin");
+			expect((installedEntry!.data as any).activationMode).toBe("dev");
+
+			// List should show installed package
+			notified.length = 0;
+			await pkgCmd.handler("list", ctx as any);
+			expect(notified[0][0]).toContain("test-plugin");
+			expect(notified[0][0]).toContain("dev (symlink)");
+		});
+
+		it("remove after install cleans up and unregisters", async () => {
+			const fixture = await createFixtureMonorepo("pkg-remove", [
+				{ name: "removable-pkg", version: "2.0.0", piExtensions: ["./src/index.ts"] },
+			]);
+			fixtures.push(fixture);
+
+			const mod = await import("../src/index.js");
+			const { api, commands, entries } = createRecordingMock();
+			await mod.default(api);
+
+			const notified: any[] = [];
+			const ctx = testContext((...args: any[]) => notified.push(args));
+			const pkgCmd = commands.get("monorego-package")!;
+
+			// Install first
+			const localPath = join(fixture.packagesDir, "removable-pkg");
+			await pkgCmd.handler(`install removable-pkg --dev ${localPath}`, ctx as any);
+			expect(notified[0][0]).toContain("installed");
+
+			// Remove
+			notified.length = 0;
+			await pkgCmd.handler("remove removable-pkg", ctx as any);
+
+			expect(notified[0][0]).toContain("removed");
+			expect(notified[0][0]).toContain("/reload");
+
+			// Should record removal event
+			const removedEntry = entries.find((e) => e.type === "monorepo-package-removed");
+			expect(removedEntry).toBeDefined();
+			expect((removedEntry!.data as any).packageName).toBe("removable-pkg");
+
+			// List should show empty
+			notified.length = 0;
+			await pkgCmd.handler("list", ctx as any);
+			expect(notified[0][0]).toContain("No packages installed");
+		});
+
+		it("list shows all installed packages with activation mode", async () => {
+			const fixtureA = await createFixtureMonorepo("pkg-list-a", [
+				{ name: "pkg-alpha", version: "1.0.0", piExtensions: ["./src/index.ts"] },
+			]);
+			const fixtureB = await createFixtureMonorepo("pkg-list-b", [
+				{ name: "pkg-beta", version: "3.0.0", piExtensions: ["./src/index.ts"] },
+			]);
+			fixtures.push(fixtureA, fixtureB);
+
+			const mod = await import("../src/index.js");
+			const { api, commands } = createRecordingMock();
+			await mod.default(api);
+
+			const notified: any[] = [];
+			const ctx = testContext((...args: any[]) => notified.push(args));
+			const pkgCmd = commands.get("monorego-package")!;
+
+			// Install both
+			await pkgCmd.handler(`install pkg-alpha --dev ${join(fixtureA.packagesDir, "pkg-alpha")}`, ctx as any);
+			await pkgCmd.handler(`install pkg-beta --dev ${join(fixtureB.packagesDir, "pkg-beta")}`, ctx as any);
+
+			// List should show both
+			notified.length = 0;
+			await pkgCmd.handler("list", ctx as any);
+
+			expect(notified[0][0]).toContain("pkg-alpha");
+			expect(notified[0][0]).toContain("pkg-beta");
+			expect(notified[0][0]).toContain("dev (symlink)");
+		});
+
+		it("install fails when package already installed", async () => {
+			const fixture = await createFixtureMonorepo("pkg-dup", [
+				{ name: "dup-pkg", version: "1.0.0", piExtensions: ["./src/index.ts"] },
+			]);
+			fixtures.push(fixture);
+
+			const mod = await import("../src/index.js");
+			const { api, commands } = createRecordingMock();
+			await mod.default(api);
+
+			const notified: any[] = [];
+			const ctx = testContext((...args: any[]) => notified.push(args));
+			const pkgCmd = commands.get("monorego-package")!;
+
+			const localPath = join(fixture.packagesDir, "dup-pkg");
+			await pkgCmd.handler(`install dup-pkg --dev ${localPath}`, ctx as any);
+			expect(notified[0][1]).toBe("info");
+
+			// Second install should fail
+			notified.length = 0;
+			await pkgCmd.handler(`install dup-pkg --dev ${localPath}`, ctx as any);
+			expect(notified[0][1]).toBe("error");
+			expect(notified[0][0]).toContain("already installed");
+		});
+
+		it("remove fails when package not installed", async () => {
+			const mod = await import("../src/index.js");
+			const { api, commands } = createRecordingMock();
+			await mod.default(api);
+
+			const notified: any[] = [];
+			const ctx = testContext((...args: any[]) => notified.push(args));
+			const pkgCmd = commands.get("monorego-package")!;
+
+			await pkgCmd.handler("remove nonexistent-pkg", ctx as any);
+			expect(notified[0][1]).toBe("error");
+			expect(notified[0][0]).toContain("not installed");
+		});
+
+		it("install fails with missing package name", async () => {
+			const mod = await import("../src/index.js");
+			const { api, commands } = createRecordingMock();
+			await mod.default(api);
+
+			const notified: any[] = [];
+			const ctx = testContext((...args: any[]) => notified.push(args));
+			const pkgCmd = commands.get("monorego-package")!;
+
+			await pkgCmd.handler("install", ctx as any);
+			expect(notified[0][1]).toBe("error");
+			expect(notified[0][0]).toContain("package name required");
+		});
+
+		it("no-args /monorego-package shows usage", async () => {
+			const mod = await import("../src/index.js");
+			const { api, commands } = createRecordingMock();
+			await mod.default(api);
+
+			const notified: any[] = [];
+			const ctx = testContext((...args: any[]) => notified.push(args));
+			const pkgCmd = commands.get("monorego-package")!;
+			await pkgCmd.handler("", ctx as any);
+
+			expect(notified[0][0]).toContain("Usage:");
+		});
+
+		it("unknown subcommand shows error", async () => {
+			const mod = await import("../src/index.js");
+			const { api, commands } = createRecordingMock();
+			await mod.default(api);
+
+			const notified: any[] = [];
+			const ctx = testContext((...args: any[]) => notified.push(args));
+			const pkgCmd = commands.get("monorego-package")!;
+			await pkgCmd.handler("bogus", ctx as any);
+
+			expect(notified[0][1]).toBe("error");
+			expect(notified[0][0]).toContain("Unknown subcommand");
+		});
+
+		it("install --dev fails when local path does not exist", async () => {
+			const mod = await import("../src/index.js");
+			const { api, commands } = createRecordingMock();
+			await mod.default(api);
+
+			const notified: any[] = [];
+			const ctx = testContext((...args: any[]) => notified.push(args));
+			const pkgCmd = commands.get("monorego-package")!;
+
+			await pkgCmd.handler("install broken-pkg --dev /absolutely/nonexistent/path", ctx as any);
+			expect(notified[0][1]).toBe("error");
+			expect(notified[0][0]).toContain("does not exist");
+		});
+
+		it("install without --dev requires a registered source", async () => {
+			const mod = await import("../src/index.js");
+			const { api, commands } = createRecordingMock();
+			await mod.default(api);
+
+			const notified: any[] = [];
+			const ctx = testContext((...args: any[]) => notified.push(args));
+			const pkgCmd = commands.get("monorego-package")!;
+
+			// No source registered, tarball mode should fail
+			await pkgCmd.handler("install some-pkg", ctx as any);
+			expect(notified[0][1]).toBe("error");
+			expect(notified[0][0]).toContain("No source found");
+		});
+
+		it("update fails when package not installed", async () => {
+			const mod = await import("../src/index.js");
+			const { api, commands } = createRecordingMock();
+			await mod.default(api);
+
+			const notified: any[] = [];
+			const ctx = testContext((...args: any[]) => notified.push(args));
+			const pkgCmd = commands.get("monorego-package")!;
+
+			await pkgCmd.handler("update some-pkg --version 2.0.0", ctx as any);
+			expect(notified[0][1]).toBe("error");
+			expect(notified[0][0]).toContain("not installed");
+		});
+
+		it("update fails for non-tarball packages", async () => {
+			const fixture = await createFixtureMonorepo("pkg-update-mode", [
+				{ name: "dev-pkg", version: "1.0.0", piExtensions: ["./src/index.ts"] },
+			]);
+			fixtures.push(fixture);
+
+			const mod = await import("../src/index.js");
+			const { api, commands } = createRecordingMock();
+			await mod.default(api);
+
+			const notified: any[] = [];
+			const ctx = testContext((...args: any[]) => notified.push(args));
+			const pkgCmd = commands.get("monorego-package")!;
+
+			// Install as dev mode
+			const localPath = join(fixture.packagesDir, "dev-pkg");
+			await pkgCmd.handler(`install dev-pkg --dev ${localPath}`, ctx as any);
+
+			// Try to update — should fail
+			notified.length = 0;
+			await pkgCmd.handler("update dev-pkg --version 2.0.0", ctx as any);
+			expect(notified[0][1]).toBe("error");
+			expect(notified[0][0]).toContain("only supported for tarball");
 		});
 	});
 });

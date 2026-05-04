@@ -282,13 +282,14 @@ describe("MonorepoRegistry", () => {
 // Extension factory — command registration wiring
 // ---------------------------------------------------------------------------
 describe("extension factory", () => {
-	it("registers one slash command: /monorego-registry", async () => {
+	it("registers two slash commands: /monorego-registry and /monorego-package", async () => {
 		const mod = await import("../src/index.js");
 		const { api, commands } = createMockAPI();
 		await mod.default(api);
 		const names = commands.map((c) => c.name);
 		expect(names).toContain("monorego-registry");
-		expect(commands).toHaveLength(1);
+		expect(names).toContain("monorego-package");
+		expect(commands).toHaveLength(2);
 	});
 
 	it("registers session_start event handler", async () => {

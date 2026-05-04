@@ -64,12 +64,12 @@ describe("Scenario 1: Load registry via pi SDK", () => {
 		expect(has).toBe(true);
 	});
 
-	it("registers exactly one command", () => {
+	it("registers two commands", () => {
 		let totalCommands = 0;
 		for (const ext of result.extensionsResult.extensions) {
 			totalCommands += ext.commands.size;
 		}
-		expect(totalCommands).toBe(1);
+		expect(totalCommands).toBe(2);
 	});
 });
 
