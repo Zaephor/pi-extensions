@@ -9,7 +9,7 @@
 import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { getCloneCacheDir } from "./paths.js";
+import { getGitDir } from "./paths.js";
 
 /**
  * Extract a short, human-friendly name from a git URL.
@@ -160,7 +160,7 @@ export function resolveSourceRoot(url: string): { rootPath: string; cloned: bool
 	}
 
 	// Clone or update the remote repo
-	const cacheDir = getCloneCacheDir();
+	const cacheDir = getGitDir();
 	const targetDir = join(cacheDir, urlToDirName(url));
 
 	if (existsSync(join(targetDir, ".git"))) {

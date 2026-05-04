@@ -35,27 +35,30 @@ export interface MonorepoSource {
 	rootPath: string;
 }
 
+/** How a package was installed / activated. */
+export type ActivationMode = "dev" | "git" | "tarball";
+
+/** A package that has been installed into the registry's managed extensions directory. */
+export interface InstalledPackage {
+	/** Package name (e.g. "pi-template"). */
+	name: string;
+	/** URL of the source this package was installed from. */
+	sourceUrl: string;
+	/** How the package was activated. */
+	activationMode: ActivationMode;
+	/** ISO timestamp when the package was installed. */
+	installedAt: string;
+	/** Absolute path to the real package directory. */
+	targetPath: string;
+	/** Relative path inside the extensions directory (e.g. "pi-template" or "@scope/pkg"). */
+	extensionDir: string;
+}
+
 /**
- * State of the monorepo registry, persisted via pi.appendEntry().
- * Represented as a serialisable object for session history entries.
+ * State of the monorepo registry, persisted to state.json under the monorepo directory.
+ * Represented as a serialisable object.
  */
 export interface RegistryState {
 	sources: MonorepoSource[];
-}
-
-/** Scope for package activation — global (user-level) or local (project-level). */
-export type Scope = "global" | "local";
-
-/** Information about an activated (symlinked) package. */
-export interface ActivationInfo {
-	/** Package name (e.g. "pi-template"). */
-	packageName: string;
-	/** Activation scope — global or local. */
-	scope: Scope;
-	/** Absolute path to the symlink in the extensions directory. */
-	symlinkPath: string;
-	/** Absolute path to the real package directory the symlink points to. */
-	targetPath: string;
-	/** ISO timestamp when the activation occurred. */
-	activatedAt: string;
+	installedPackages: InstalledPackage[];
 }
