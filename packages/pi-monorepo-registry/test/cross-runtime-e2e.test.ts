@@ -64,12 +64,9 @@ describe("Scenario 1: Load registry via pi SDK", () => {
 		expect(has).toBe(true);
 	});
 
-	it("registers two commands", () => {
-		let totalCommands = 0;
-		for (const ext of result.extensionsResult.extensions) {
-			totalCommands += ext.commands.size;
-		}
-		expect(totalCommands).toBe(2);
+	it("registers /monorego-package command", () => {
+		const has = result.extensionsResult.extensions.some((ext: any) => ext.commands.has("monorego-package"));
+		expect(has).toBe(true);
 	});
 });
 
@@ -114,6 +111,11 @@ describe.skipIf(!gsdAvailable)("Scenario 2: Load registry via gsd SDK", () => {
 
 	it("registers /monorego-registry command", () => {
 		const ext = result.extensionsResult.extensions.find((e: any) => e.commands.has("monorego-registry"));
+		expect(ext).toBeDefined();
+	});
+
+	it("registers /monorego-package command", () => {
+		const ext = result.extensionsResult.extensions.find((e: any) => e.commands.has("monorego-package"));
 		expect(ext).toBeDefined();
 	});
 });

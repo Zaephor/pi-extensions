@@ -56,8 +56,8 @@ export function makeTemp(prefix: string): string {
 // ---------------------------------------------------------------------------
 // Filesystem helpers
 // ---------------------------------------------------------------------------
-export function isSymlinked(activeDir: string, name: string): boolean {
-	const linkPath = path.join(activeDir, name);
+export function isSymlinked(extensionsDir: string, name: string): boolean {
+	const linkPath = path.join(extensionsDir, packageNameToDirName(name));
 	if (!existsSync(linkPath)) return false;
 	try {
 		return lstatSync(linkPath).isSymbolicLink();
@@ -66,10 +66,31 @@ export function isSymlinked(activeDir: string, name: string): boolean {
 	}
 }
 
-export function makeActiveDir(agentDir: string): string {
-	const extDir = path.join(agentDir, "monorepo-registry", "active");
+/**
+ * Create the extensions directory that getExtensionsDir() resolves to.
+ * agentDir must follow pattern <tempDir>/.pi/agent so dirname gives <tempDir>/.pi
+ * and monorepo resolves to <tempDir>/.pi/monorepo/extensions/.
+ */
+export function makeExtensionsDir(agentDir: string): string {
+	const extDir = path.join(path.dirname(agentDir), "monorepo", "extensions");
 	mkdirSync(extDir, { recursive: true });
 	return extDir;
+}
+
+/**
+ * Get the extensions directory path for a given agent dir.
+ * Mirrors the logic in paths.ts: dirname(agentDir)/monorepo/extensions/
+ */
+export function getExtensionsDirFor(agentDir: string): string {
+	return path.join(path.dirname(agentDir), "monorepo", "extensions");
+}
+
+/**
+ * Convert a package name to a filesystem-safe directory name.
+ * Mirrors packages.ts: packageNameToDirName.
+ */
+export function packageNameToDirName(packageName: string): string {
+	return packageName.replace(/\//g, "-");
 }
 
 // ---------------------------------------------------------------------------
@@ -210,8 +231,8 @@ function createRegistryMock() {
 
 /**
  * Install a package via the registry into an agent dir.
- * Loads the registry extension with a mock API, registers the monorepo source,
- * then runs /monorepo-install for the target package.
+ * Loads the registry extension with a mock API, registers the monorepo source
+ * via /monorego-registry add, then installs package via /monorego-package install --dev.
  *
  * @param registrySrc - Absolute path to pi-monorepo-registry/src/index.ts
  * @param repoRoot - Absolute path to the monorepo root (containing packages/)
@@ -225,16 +246,17 @@ export async function installViaRegistry(
 	await withAgentDir(agentDir, async () => {
 		const mock = createRegistryMock();
 
-		const mod = await import(registrySrc);
+		const mod = await import(/* @vite-ignore */ registrySrc);
 		await mod.default(mock.api);
 
-		// Register this monorepo as a source
-		const regCmd = mock.commands.get("monorepo-registry")!;
+		// Register this monorepo as a source via /monorego-registry add
+		const regCmd = mock.commands.get("monorego-registry")!;
 		await regCmd.handler(`add ${repoRoot} packages`, mock.ctx);
 
-		// Install the target package
-		const installCmd = mock.commands.get("monorepo-install")!;
-		await installCmd.handler(packageName, mock.ctx);
+		// Install the target package via /monorego-package install --dev (symlink to local)
+		const pkgDir = path.join(repoRoot, "packages", packageNameToDirName(packageName));
+		const pkgCmd = mock.commands.get("monorego-package")!;
+		await pkgCmd.handler(`install ${packageName} --dev ${pkgDir}`, mock.ctx);
 	});
 }
 

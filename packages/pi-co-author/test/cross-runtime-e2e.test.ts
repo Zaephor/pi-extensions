@@ -5,22 +5,23 @@
  * Tests: install via registry under pi, gsd, and both — verify symlink
  * isolation and that the extension loads with co-author-mode flag + handlers.
  */
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
 	gsdAvailable,
+	getExtensionsDirFor,
 	installViaRegistry,
 	isSymlinked,
 	loadViaGsd,
 	loadViaPi,
-	makeActiveDir,
+	makeExtensionsDir,
 	makeTemp,
 	nextId,
 	resetIds,
 } from "../../../shared/test/cross-runtime-helpers.js";
 
-const __filename = new URL(import.meta.url).pathname;
-const __dirname = path.dirname(__filename);
+const __dirname = path.dirname(new URL(import.meta.url).pathname);
 
 const pkgName = "pi-co-author";
 const registrySrc = path.resolve(__dirname, "../../pi-monorepo-registry/src/index.ts");
@@ -38,48 +39,32 @@ describe("Scenario 1: Install pi-co-author via pi only", () => {
 	beforeAll(async () => {
 		piAgentDir = makeTemp(`pi-coa-${nextId()}`);
 		gsdAgentDir = makeTemp(`gsd-coa-${nextId()}`);
-		makeActiveDir(piAgentDir);
+		// Agent dir must be <temp>/.pi/agent so dirname = <temp>/.pi
+		piAgentDir = path.join(piAgentDir, ".pi", "agent");
+		gsdAgentDir = path.join(gsdAgentDir, ".pi", "agent");
+		makeExtensionsDir(piAgentDir);
 
 		await installViaRegistry(piAgentDir, pkgName, registrySrc, repoRoot);
 	});
 
 	it("symlink in pi agent dir", () => {
-		expect(isSymlinked(path.join(piAgentDir, "monorepo-registry/active"), pkgName)).toBe(true);
+		const extDir = getExtensionsDirFor(piAgentDir);
+		expect(isSymlinked(extDir, pkgName)).toBe(true);
 	});
 
 	it("no symlink in gsd agent dir", () => {
-		expect(isSymlinked(path.join(gsdAgentDir, "monorepo-registry/active"), pkgName)).toBe(false);
+		const extDir = getExtensionsDirFor(gsdAgentDir);
+		expect(isSymlinked(extDir, pkgName)).toBe(false);
 	});
 
-	it("registry can load extension from active/ dir", async () => {
-		const { loadActiveExtensions } = await import(path.resolve(__dirname, "../../pi-monorepo-registry/src/loader.ts"));
-		const flags = new Map();
-		const handlers = new Map();
-		const mockApi = {
-			registerFlag: (n: string, o: any) => flags.set(n, o),
-			on: (e: string, h: any) => {
-				const l = handlers.get(e) || [];
-				l.push(h);
-				handlers.set(e, l);
-			},
-			registerCommand: () => {},
-			registerTool: () => {},
-			registerShortcut: () => {},
-			getFlag: () => undefined,
-			appendEntry: () => {},
-		} as any;
+	it("extension directory contains package.json with pi.extensions", () => {
+		const extDir = getExtensionsDirFor(piAgentDir);
+		const pkgJsonPath = path.join(extDir, "pi-co-author", "package.json");
+		expect(existsSync(pkgJsonPath)).toBe(true);
 
-		const activeDir = path.join(piAgentDir, "monorepo-registry", "active");
-		const result = await loadActiveExtensions(activeDir, mockApi);
-		expect(result.errors).toHaveLength(0);
-		expect(result.loaded).toContain("pi-co-author");
-		expect(flags.has("co-author-mode")).toBe(true);
-		// Event handlers are captured by the loader's proxy API, not the test mock
-		expect(result.subExtensions.length).toBeGreaterThan(0);
-		const subExt = result.subExtensions.find((s: any) => s.name === "pi-co-author");
-		expect(subExt).toBeDefined();
-		expect(subExt.handlers.has("session_start")).toBe(true);
-		expect(subExt.handlers.has("tool_call")).toBe(true);
+		const pkgJson = JSON.parse(readFileSync(pkgJsonPath, "utf-8"));
+		expect(pkgJson.pi).toBeDefined();
+		expect(pkgJson.pi.extensions).toBeDefined();
 	});
 });
 
@@ -93,42 +78,31 @@ describe.skipIf(!gsdAvailable)("Scenario 2: Install pi-co-author via gsd only", 
 	beforeAll(async () => {
 		piAgentDir = makeTemp(`pi-coa-${nextId()}`);
 		gsdAgentDir = makeTemp(`gsd-coa-${nextId()}`);
-		makeActiveDir(gsdAgentDir);
+		piAgentDir = path.join(piAgentDir, ".pi", "agent");
+		gsdAgentDir = path.join(gsdAgentDir, ".pi", "agent");
+		makeExtensionsDir(gsdAgentDir);
 
 		await installViaRegistry(gsdAgentDir, pkgName, registrySrc, repoRoot);
 	});
 
 	it("symlink in gsd agent dir", () => {
-		expect(isSymlinked(path.join(gsdAgentDir, "monorepo-registry/active"), pkgName)).toBe(true);
+		const extDir = getExtensionsDirFor(gsdAgentDir);
+		expect(isSymlinked(extDir, pkgName)).toBe(true);
 	});
 
 	it("no symlink in pi agent dir", () => {
-		expect(isSymlinked(path.join(piAgentDir, "monorepo-registry/active"), pkgName)).toBe(false);
+		const extDir = getExtensionsDirFor(piAgentDir);
+		expect(isSymlinked(extDir, pkgName)).toBe(false);
 	});
 
-	it("registry can load extension from active/ dir", async () => {
-		const { loadActiveExtensions } = await import(path.resolve(__dirname, "../../pi-monorepo-registry/src/loader.ts"));
-		const flags = new Map();
-		const handlers = new Map();
-		const mockApi = {
-			registerFlag: (n: string, o: any) => flags.set(n, o),
-			on: (e: string, h: any) => {
-				const l = handlers.get(e) || [];
-				l.push(h);
-				handlers.set(e, l);
-			},
-			registerCommand: () => {},
-			registerTool: () => {},
-			registerShortcut: () => {},
-			getFlag: () => undefined,
-			appendEntry: () => {},
-		} as any;
+	it("extension directory contains package.json with pi.extensions", () => {
+		const extDir = getExtensionsDirFor(gsdAgentDir);
+		const pkgJsonPath = path.join(extDir, "pi-co-author", "package.json");
+		expect(existsSync(pkgJsonPath)).toBe(true);
 
-		const activeDir = path.join(gsdAgentDir, "monorepo-registry", "active");
-		const { loaded, errors } = await loadActiveExtensions(activeDir, mockApi);
-		expect(errors).toHaveLength(0);
-		expect(loaded).toContain("pi-co-author");
-		expect(flags.has("co-author-mode")).toBe(true);
+		const pkgJson = JSON.parse(readFileSync(pkgJsonPath, "utf-8"));
+		expect(pkgJson.pi).toBeDefined();
+		expect(pkgJson.pi.extensions).toBeDefined();
 	});
 });
 
@@ -142,19 +116,23 @@ describe.skipIf(!gsdAvailable)("Scenario 3: Install pi-co-author in both pi and 
 	beforeAll(async () => {
 		piAgentDir = makeTemp(`pi-coa-${nextId()}`);
 		gsdAgentDir = makeTemp(`gsd-coa-${nextId()}`);
-		makeActiveDir(piAgentDir);
-		makeActiveDir(gsdAgentDir);
+		piAgentDir = path.join(piAgentDir, ".pi", "agent");
+		gsdAgentDir = path.join(gsdAgentDir, ".pi", "agent");
+		makeExtensionsDir(piAgentDir);
+		makeExtensionsDir(gsdAgentDir);
 
 		await installViaRegistry(piAgentDir, pkgName, registrySrc, repoRoot);
 		await installViaRegistry(gsdAgentDir, pkgName, registrySrc, repoRoot);
 	});
 
 	it("symlink in pi agent dir", () => {
-		expect(isSymlinked(path.join(piAgentDir, "monorepo-registry/active"), pkgName)).toBe(true);
+		const extDir = getExtensionsDirFor(piAgentDir);
+		expect(isSymlinked(extDir, pkgName)).toBe(true);
 	});
 
 	it("symlink in gsd agent dir", () => {
-		expect(isSymlinked(path.join(gsdAgentDir, "monorepo-registry/active"), pkgName)).toBe(true);
+		const extDir = getExtensionsDirFor(gsdAgentDir);
+		expect(isSymlinked(extDir, pkgName)).toBe(true);
 	});
 
 	it("pi loads without errors", async () => {
