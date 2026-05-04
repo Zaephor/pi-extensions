@@ -110,6 +110,8 @@ describe("package shape", () => {
 			"src/types.ts",
 			"src/paths.ts",
 			"src/git.ts",
+			"src/packages.ts",
+			"src/tarball.ts",
 			"package.json",
 			"README.md",
 		];
