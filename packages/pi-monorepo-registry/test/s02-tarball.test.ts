@@ -225,6 +225,123 @@ describe("extractTarball", () => {
 
 // --------------- downloadAndExtract ---------------
 
+// --------------- CI round-trip: pack → extract → validate ---------------
+
+describe("CI tarball round-trip", () => {
+	/**
+	 * Mirrors the exact tar command from release.yml:
+	 *   tar -czf "$tarball" --exclude='node_modules' --exclude='.git' --exclude='.*' \
+	 *     -C "$(dirname path)" "$(basename path)"
+	 * Then extracts with our extractTarball() and validates contents
+	 * using the same checks as the CI Validate tarball contents step.
+	 */
+	it("packs pi-monorepo-registry with CI flags, extracts, and validates contents", () => {
+		const pkgPath = "packages/pi-monorepo-registry";
+		const pkgJsonPath = join(pkgPath, "package.json");
+
+		// Skip if running outside repo root (e.g. in an isolated test environment)
+		if (!existsSync(pkgJsonPath)) {
+			return;
+		}
+
+		const pkgJson = JSON.parse(
+			execSync(`cat "${pkgJsonPath}"`, { encoding: "utf-8" }),
+		);
+		const pkgName = pkgJson.name as string;
+		const pkgVersion = (pkgJson.version as string) ?? "0.0.0";
+		const tarballName = `${pkgName}-${pkgVersion}.tgz`;
+		const tarballPath = join(tempDir, tarballName);
+
+		// Step 1: Pack with the EXACT same tar command as release.yml
+		execSync(
+			`tar -czf "${tarballPath}" ` +
+			`--exclude='node_modules' --exclude='.git' --exclude='.*' ` +
+			`-C "$(dirname '${pkgPath}')" "$(basename '${pkgPath}')"`,
+			{ cwd: process.cwd(), stdio: "pipe" },
+		);
+
+		expect(existsSync(tarballPath)).toBe(true);
+
+		// Step 2: Extract with our own extractTarball()
+		const extractDir = join(tempDir, "extracted");
+		mkdirSync(extractDir, { recursive: true });
+		const extractedPath = extractTarball(tarballPath, extractDir);
+
+		expect(existsSync(extractedPath)).toBe(true);
+
+		// Step 3: Validate contents — same checks as CI Validate tarball contents step
+
+		// 3a: src/ directory exists
+		expect(existsSync(join(extractedPath, "src"))).toBe(true);
+		expect(
+			existsSync(join(extractedPath, "src")) &&
+			execSync(`ls "${join(extractedPath, "src")}"`, { encoding: "utf-8" }).trim().length > 0,
+		).toBe(true);
+
+		// 3b: package.json exists and has pi manifest (pi.extensions or pi-package keyword)
+		const extractedPkgJson = JSON.parse(
+			execSync(`cat "${join(extractedPath, "package.json")}"`, { encoding: "utf-8" }),
+		);
+		const hasPiExtensions = !!extractedPkgJson.pi?.extensions;
+		const hasPiKeyword = Array.isArray(extractedPkgJson.keywords) &&
+			extractedPkgJson.keywords.includes("pi-package");
+		expect(hasPiExtensions || hasPiKeyword).toBe(true);
+
+		// 3c: No node_modules/ directory
+		expect(existsSync(join(extractedPath, "node_modules"))).toBe(false);
+
+		// 3d: No hidden files (the --exclude='.*' should strip .tsbuildinfo etc)
+		const listing = execSync(`find "${extractedPath}" -name '.*'`, { encoding: "utf-8" }).trim();
+		expect(listing).toBe("");
+	});
+
+	it("CI tarball tag format matches buildReleaseTag output", () => {
+		const pkgPath = "packages/pi-monorepo-registry";
+		const pkgJsonPath = join(pkgPath, "package.json");
+
+		if (!existsSync(pkgJsonPath)) {
+			return;
+		}
+
+		const pkgJson = JSON.parse(
+			execSync(`cat "${pkgJsonPath}"`, { encoding: "utf-8" }),
+		);
+		const pkgVersion = (pkgJson.version as string) ?? "0.0.0";
+
+		// The tag format CI builds: strip "packages/", replace "/" with "--", then "-v" + version
+		const ciTag = execSync(
+			`echo "${pkgPath}" | sed 's|packages/||; s|/|--|g'`,
+			{ encoding: "utf-8" },
+		).trim() + `-v${pkgVersion}`;
+
+		// Our tarball.ts function should produce the same tag
+		const codeTag = buildReleaseTag(pkgPath, pkgVersion);
+
+		expect(ciTag).toBe(codeTag);
+	});
+
+	it("download URL derived from CI tag resolves to correct filename", () => {
+		const pkgPath = "packages/pi-monorepo-registry";
+		const pkgJsonPath = join(pkgPath, "package.json");
+
+		if (!existsSync(pkgJsonPath)) {
+			return;
+		}
+
+		const pkgJson = JSON.parse(
+			execSync(`cat "${pkgJsonPath}"`, { encoding: "utf-8" }),
+		);
+		const pkgName = pkgJson.name as string;
+		const pkgVersion = (pkgJson.version as string) ?? "0.0.0";
+
+		const tag = buildReleaseTag(pkgPath, pkgVersion);
+		const url = buildTarballUrl("owner", "repo", tag, pkgName, pkgVersion);
+		const filename = url.split("/").pop();
+
+		expect(filename).toBe(`${pkgName}-${pkgVersion}.tgz`);
+	});
+});
+
 describe("downloadAndExtract", () => {
 	it("fails with informative error for unreachable host", async () => {
 		const url = "https://github.invalid/owner/repo/releases/download/test--v1.0.0/test-1.0.0.tgz";
