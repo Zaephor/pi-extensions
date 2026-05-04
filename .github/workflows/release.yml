@@ -155,6 +155,62 @@ jobs:
           echo "--- Tarball size ---"
           ls -lh "$tarball"
 
+      # Validate tarball contents: src/ present, package.json has pi manifest, no node_modules
+      - name: Validate tarball contents
+        run: |
+          echo "=== Validating tarball: ${tarball} ==="
+          validate_dir=$(mktemp -d)
+          tar -xzf "$tarball" -C "$validate_dir"
+          
+          # Find the extracted package directory (single top-level dir)
+          pkg_dir=$(ls "$validate_dir")
+          echo "Extracted to: ${validate_dir}/${pkg_dir}"
+          
+          errors=0
+          
+          # 1. Check src/ directory exists
+          if [ -d "${validate_dir}/${pkg_dir}/src" ]; then
+            echo "✅ src/ directory found"
+          else
+            echo "❌ FAIL: src/ directory missing"
+            errors=$((errors + 1))
+          fi
+          
+          # 2. Check package.json exists and has pi manifest (pi.extensions or pi-package keyword)
+          pj="${validate_dir}/${pkg_dir}/package.json"
+          if [ -f "$pj" ]; then
+            has_pi_ext=$(jq -e '.pi.extensions' "$pj" > /dev/null 2>&1 && echo "yes" || echo "no")
+            has_pi_kw=$(jq -e '.keywords | index("pi-package")' "$pj" > /dev/null 2>&1 && echo "yes" || echo "no")
+            if [ "$has_pi_ext" = "yes" ] || [ "$has_pi_kw" = "yes" ]; then
+              echo "✅ package.json has pi manifest (extensions=$has_pi_ext, keyword=$has_pi_kw)"
+            else
+              echo "❌ FAIL: package.json missing pi.extensions and pi-package keyword"
+              errors=$((errors + 1))
+            fi
+          else
+            echo "❌ FAIL: package.json missing"
+            errors=$((errors + 1))
+          fi
+          
+          # 3. Check no node_modules/ directory
+          if [ -d "${validate_dir}/${pkg_dir}/node_modules" ]; then
+            echo "❌ FAIL: node_modules/ found in tarball"
+            errors=$((errors + 1))
+          else
+            echo "✅ No node_modules/ in tarball"
+          fi
+          
+          # Summary
+          echo ""
+          echo "=== Validation: ${errors} error(s) ==="
+          if [ "$errors" -gt 0 ]; then
+            echo "::error::Tarball validation failed with ${errors} error(s)"
+            rm -rf "$validate_dir"
+            exit 1
+          fi
+          echo "Validation passed for ${tarball}"
+          rm -rf "$validate_dir"
+
       # Build the tag body: strip "packages/" prefix, replace "/" with "--"
       # Then search for release-please tag: {tag-body}-v{version}
       - name: Get release tag
