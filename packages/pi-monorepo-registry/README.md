@@ -1,107 +1,217 @@
 # pi-monorepo-registry
 
-Discover and manage pi extension packages across monorepo sources.
+A pure package manager for [pi](https://github.com/nicepkg/pi) extensions. Register monorepo sources, discover pi-compatible packages, and install them so pi/gsd's native extension loader can find them.
 
-## What It Does
-
-pi-monorepo-registry registers slash commands for managing a registry of monorepo sources. It discovers pi-compatible packages within those sources (any directory with a `package.json` containing `pi.extensions` or the `pi-package` keyword) and handles symlink-based activation so pi can load them at runtime.
-
-Key capabilities:
-
-- **Source management** — Register, update, and remove monorepo git sources
-- **Package discovery** — Automatically scan registered monorepos for pi-compatible packages
-- **Install/uninstall** — Create or remove activation symlinks in global or local scope
-- **Session history** — Record install/remove events via `pi.appendEntry()` for audit trails
+This is **not** a runtime or plugin loader — it manages package registration in `settings.json` and creates symlinks or extracts tarballs so that pi's built-in extension system discovers and loads them.
 
 ## Installation
 
 ```sh
 pi install git:github.com/Zaephor/pi-extensions
-/monorepo-install pi-monorepo-registry
 /reload
 ```
 
-> If you have the full pi-extensions monorepo cloned, you can also activate it directly:
-> ```
-> /monorepo-install pi-monorepo-registry
-> /reload
-> ```
+After installing, two commands become available: `/monorego-registry` and `/monorego-package`.
 
-## Usage
+## Commands
 
-### Register a monorepo source
+### `/monorego-registry` — Manage monorepo sources
+
+#### Add a source
 
 ```
-/monorepo-registry add /path/to/my-monorepo packages
+/monorego-registry add <url-or-path> [packages-root]
 ```
 
-The second argument is the subdirectory containing packages (defaults to `packages`). The command scans for pi-compatible packages and reports how many were found.
+Registers a monorepo source and scans it for pi-compatible packages. The optional `packages-root` argument specifies the subdirectory containing packages (defaults to `packages`).
 
-You can also pass a git URL:
+```sh
+# From a git URL
+/monorego-registry add https://github.com/user/my-pi-extensions
 
-```
-/monorepo-registry add https://github.com/user/my-pi-extensions
-```
-
-### List discovered packages
-
-```
-/monorepo-list
+# From a local path with custom packages root
+/monorego-registry add /path/to/my-monorepo plugins
 ```
 
-Shows all registered sources and their discovered packages with name, version, and description.
-
-### Install a package
+#### Remove a source
 
 ```
-/monorepo-install my-extension
+/monorego-registry remove <source>
 ```
 
-By default installs to **global** scope (available in all projects). Use the `-l` flag for local scope (current project only):
+Removes a registered source by URL or short name.
+
+#### List sources
 
 ```
-/monorepo-install my-extension -l
+/monorego-registry list
 ```
 
-You can specify a source explicitly with `source/package` format:
+Shows all registered sources, their discovered packages (with name, version, description), and highlights duplicate package names across sources.
+
+#### Update sources
 
 ```
-/monorepo-install my-monorepo/my-extension
+/monorego-registry update              # Re-scan all sources
+/monorego-registry update my-monorepo  # Re-san a specific source
 ```
 
-After installing, run `/reload` to activate the extension.
+Re-discovers packages in the source, picking up any additions or changes.
 
-### Remove a package
+### `/monorego-package` — Install, remove, update, and list packages
 
-```
-/monorepo-remove my-extension
-```
-
-Supports `-l` for local scope. Run `/reload` after removing to deactivate.
-
-### Update sources
+#### Install (dev mode — symlink to local checkout)
 
 ```
-/monorepo-registry update              # Update all sources
-/monorepo-registry update my-monorepo  # Update a specific source
+/monorego-package install <name> --dev <path>
 ```
 
-Re-scans the monorepo for new or changed packages.
+Creates a symlink from the extensions directory to a local package checkout. Ideal for active development where changes should be reflected immediately.
 
-### Remove a source
-
-```
-/monorepo-registry remove my-monorepo
+```sh
+/monorego-package install my-extension --dev /projects/my-extension
 ```
 
-## Configuration
+#### Install (git mode — clone + symlink)
 
-No environment variables or settings files required. Registry state is held in-memory for the session duration.
+```
+/monorego-package install <name> --git
+```
 
-The extension uses pi's standard agent directory for global-scope symlinks:
+Clones (or reuses) the source repository and creates a symlink to the package directory within it.
 
-- **Global**: `$AGENT_DIR/extensions/<package-name>` — where `$AGENT_DIR` is resolved by `getAgentDir()` from the pi SDK
-- **Local**: `<cwd>/extensions/<package-name>` — relative to the current working directory
+```sh
+/monorego-package install my-extension --git
+```
+
+#### Install (tarball mode — download, default)
+
+```
+/monorego-package install <name>                    # Latest from discovered version
+/monorego-package install <name> --version 1.2.0    # Specific version
+/monorego-package install <name> --source <url>     # Explicit source
+```
+
+Downloads a release tarball from GitHub and extracts it into the extensions directory. This is the default mode when no flags are specified.
+
+#### Remove
+
+```
+/monorego-package remove <name>
+```
+
+Removes the installed package — deletes symlinks (dev/git) or extracted directories (tarball) and unregisters from settings.
+
+#### Update
+
+```
+/monorego-package update <name> [--version <semver>]
+```
+
+Downloads a new version of a tarball-installed package and atomically swaps it in place. Only supported for tarball-activated packages — dev and git packages should be updated at their source.
+
+#### List
+
+```
+/monorego-package list
+```
+
+Shows all installed packages with their activation mode, source, install date, and target path.
+
+## Activation Modes
+
+| Mode | Flag | How it works | Best for |
+|------|------|--------------|----------|
+| **Dev** | `--dev <path>` | Symlink to local checkout | Active development — changes reflect immediately |
+| **Git** | `--git` | Clone source repo + symlink | Tracking upstream without modifying |
+| **Tarball** | *(default)* | Download GitHub release tarball | Production use — reproducible, no git required |
+
+All three modes register the extension in `settings.json` so pi/gsd discovers it on the next `/reload`.
+
+## Agent Isolation
+
+State and extensions are stored per-agent — there is no cross-contamination:
+
+```
+~/.pi/monorepo/          ← pi agent
+├── extensions/          ← installed packages
+├── git/                 ← cloned source repos
+└── state.json           ← registry + install state
+
+~/.gsd/monorepo/         ← gsd agent (same layout)
+├── extensions/
+├── git/
+└── state.json
+```
+
+The agent directory is resolved at runtime via the pi SDK's `getAgentDir()` — pi uses `~/.pi/`, gsd uses `~/.gsd/`. Each agent maintains its own independent registry and installed packages.
+
+## Package Discovery
+
+A package is discoverable when its `package.json` contains **either**:
+
+- A `pi` field with an `extensions` array:
+  ```json
+  { "pi": { "extensions": ["./src/index.ts"] } }
+  ```
+
+- The keyword `pi-package` in its `keywords` array:
+  ```json
+  { "keywords": ["pi-package"] }
+  ```
+
+The discovery algorithm walks immediate subdirectories of the configured packages root and checks each for these criteria.
+
+## Package Structure
+
+```
+packages/pi-monorepo-registry/
+├── src/
+│   ├── index.ts          # Extension entry — registers commands, session_start handler
+│   ├── discovery.ts      # Walks directories to find pi-compatible packages
+│   ├── git.ts            # Git URL parsing, short name extraction, clone resolution
+│   ├── packages.ts       # PackageManager — install/remove/update lifecycle
+│   ├── paths.ts          # Agent-scoped filesystem paths
+│   ├── persistence.ts    # Load/save registry state from disk
+│   ├── registry.ts       # MonorepoRegistry — source CRUD and package discovery
+│   ├── settings.ts       # Register/unregister extension paths in settings.json
+│   ├── tarball.ts        # GitHub release tarball download and extraction
+│   └── types.ts          # TypeScript types (RegistryState, PackageInfo, ActivationMode)
+├── test/
+│   ├── helpers/
+│   │   ├── fixture.ts    # Test fixture monorepo creation
+│   │   └── mock-api.ts   # Mock ExtensionAPI for unit/integration tests
+│   ├── unit.test.ts
+│   ├── integration.test.ts
+│   ├── package-shape.test.ts
+│   ├── sdk-e2e.test.ts
+│   ├── cross-runtime-e2e.test.ts
+│   ├── s01-paths.test.ts
+│   ├── s01-persistence.test.ts
+│   ├── s01-settings.test.ts
+│   ├── s02-packages.test.ts
+│   └── s02-tarball.test.ts
+└── package.json
+```
+
+## Testing
+
+Run from the monorepo root or from `packages/pi-monorepo-registry`:
+
+```sh
+npm test
+```
+
+The test suite has four tiers plus cross-runtime and per-slice test files:
+
+| Tier | Files | What it verifies |
+|------|-------|------------------|
+| Unit | `test/unit.test.ts`, `test/s01-*.test.ts` | Registry operations, path resolution, persistence, settings management |
+| Integration | `test/integration.test.ts` | Full command registration and handler execution |
+| Package shape | `test/package-shape.test.ts` | `package.json` has required pi manifest fields, correct file structure |
+| SDK e2e | `test/sdk-e2e.test.ts` | Full pi runtime loads the extension via `SessionManager` |
+| Cross-runtime e2e | `test/cross-runtime-e2e.test.ts` | Extension loads correctly under both pi and gsd SDK runtimes |
+| Slice tests | `test/s02-*.test.ts` | PackageManager install/remove/update, tarball download and extraction |
 
 ## Development
 
@@ -120,7 +230,7 @@ Available scripts in this package:
 | `npm run check` | Type-check with `tsc --noEmit` |
 | `npm test` | Run all tests with Vitest |
 
-From the monorepo root you can also run:
+From the monorepo root:
 
 ```sh
 npm run typecheck   # type-check all packages
@@ -128,51 +238,3 @@ npm run check       # lint all files with Biome
 npm run test        # run all tests
 npm run check:all   # typecheck + lint + test
 ```
-
-## Testing
-
-Run tests from the root or from `packages/pi-monorepo-registry`:
-
-```sh
-npm test
-```
-
-The test suite has four tiers:
-
-| Tier | File | What it verifies |
-|------|------|------------------|
-| Unit | `test/unit.test.ts` | Registry operations, discovery logic, symlink management |
-| Integration | `test/integration.test.ts` | Full command registration and handler execution |
-| Package shape | `test/package-shape.test.ts` | `package.json` has required pi manifest fields |
-| SDK e2e | `test/sdk-e2e.test.ts` | Full pi runtime loads the extension via `SessionManager` |
-
-## Package Structure
-
-```
-packages/pi-monorepo-registry/
-├── src/
-│   ├── index.ts         # Default export: registers all commands
-│   ├── activation.ts    # Symlink creation/removal for package activation
-│   ├── discovery.ts     # Walks directories to find pi-compatible packages
-│   ├── registry.ts      # MonorepoRegistry class — source CRUD and state
-│   ├── deps.ts          # node_modules existence checks
-│   └── types.ts         # TypeScript types (RegistryState, PackageInfo, Scope)
-├── test/
-│   ├── helpers/
-│   │   ├── fixture.ts   # Test fixture monorepo creation
-│   │   └── mock-api.ts  # Mock ExtensionAPI for unit/integration tests
-│   ├── unit.test.ts
-│   ├── integration.test.ts
-│   ├── package-shape.test.ts
-│   └── sdk-e2e.test.ts
-└── package.json
-```
-
-## Package Discovery
-
-A package is considered discoverable when its `package.json` contains either:
-
-- A `pi` field with an `extensions` array, OR
-- The keyword `pi-package` in its `keywords` array.
-
-The discovery algorithm walks immediate subdirectories of the configured packages root and checks each for these criteria.
