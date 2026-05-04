@@ -9,9 +9,9 @@
  */
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { PackageManager, packageNameToDirName } from "./packages.js";
 import { getExtensionsDir, getGitDir, getSettingsFilePath, getStateFilePath } from "./paths.js";
 import { loadState, saveState } from "./persistence.js";
-import { PackageManager, packageNameToDirName } from "./packages.js";
 import { MonorepoRegistry } from "./registry.js";
 import type { ActivationMode } from "./types.js";
 
@@ -26,8 +26,8 @@ export {
 	resolveSourceRoot,
 	urlToDirName,
 } from "./git.js";
-export { getExtensionsDir, getGitDir, getMonorepoDir, getRegistryBaseDir, getStateFilePath } from "./paths.js";
 export { PackageManager, packageNameToDirName } from "./packages.js";
+export { getExtensionsDir, getGitDir, getMonorepoDir, getRegistryBaseDir, getStateFilePath } from "./paths.js";
 export { MonorepoRegistry } from "./registry.js";
 export type { ActivationMode, InstalledPackage, MonorepoSource, PackageInfo, RegistryState } from "./types.js";
 
@@ -44,8 +44,7 @@ export default async function (pi: ExtensionAPI) {
 
 	// --- /monorego-registry: manage registry sources (add/remove/list/update) ---
 	pi.registerCommand("monorego-registry", {
-		description:
-			"Manage monorepo registry sources (add/remove/list/update [source])",
+		description: "Manage monorepo registry sources (add/remove/list/update [source])",
 		handler: async (args, ctx) => {
 			const parts = args.trim().split(/\s+/);
 			const subcommand = parts[0];
@@ -190,8 +189,7 @@ export default async function (pi: ExtensionAPI) {
 	const pkgManager = new PackageManager(savedState);
 
 	pi.registerCommand("monorego-package", {
-		description:
-			"Install, remove, update, or list packages from monorepo sources",
+		description: "Install, remove, update, or list packages from monorepo sources",
 		handler: async (args, ctx) => {
 			const parts = args.trim().split(/\s+/);
 			const subcommand = parts[0];
@@ -199,9 +197,9 @@ export default async function (pi: ExtensionAPI) {
 			if (!subcommand) {
 				ctx.ui.notify(
 					"Usage: /monorego-package install <name> [--dev <path>] [--git] [--source <url>] [--version <semver>]\n" +
-					"       /monorego-package remove <name>\n" +
-					"       /monorego-package update <name> [--version <semver>]\n" +
-					"       /monorego-package list",
+						"       /monorego-package remove <name>\n" +
+						"       /monorego-package update <name> [--version <semver>]\n" +
+						"       /monorego-package list",
 					"error",
 				);
 				return;
@@ -253,10 +251,7 @@ export default async function (pi: ExtensionAPI) {
 							pi.appendEntry(event.type, event.data);
 						}
 						await persist(registry);
-						ctx.ui.notify(
-							`Package "${pkgName}" installed (dev → ${devPath}).\nRun /reload to activate.`,
-							"info",
-						);
+						ctx.ui.notify(`Package "${pkgName}" installed (dev → ${devPath}).\nRun /reload to activate.`, "info");
 					} else if (useGit) {
 						// --git mode: clone + symlink
 						const source = resolveSourceForPackage(registry, pkgName, sourceId);
@@ -294,10 +289,7 @@ export default async function (pi: ExtensionAPI) {
 						}
 						const pkgVersion = version ?? resolvePackageVersion(source, pkgName);
 						if (!pkgVersion) {
-							ctx.ui.notify(
-								`Cannot determine version for "${pkgName}". Specify --version <semver>.`,
-								"error",
-							);
+							ctx.ui.notify(`Cannot determine version for "${pkgName}". Specify --version <semver>.`, "error");
 							return;
 						}
 
@@ -317,10 +309,7 @@ export default async function (pi: ExtensionAPI) {
 							pi.appendEntry(event.type, event.data);
 						}
 						await persist(registry);
-						ctx.ui.notify(
-							`Package "${pkgName}@${pkgVersion}" installed (tarball).\nRun /reload to activate.`,
-							"info",
-						);
+						ctx.ui.notify(`Package "${pkgName}@${pkgVersion}" installed (tarball).\nRun /reload to activate.`, "info");
 					}
 				} catch (err) {
 					ctx.ui.notify(`Error installing package: ${err instanceof Error ? err.message : String(err)}`, "error");
@@ -341,17 +330,17 @@ export default async function (pi: ExtensionAPI) {
 						pi.appendEntry(event.type, event.data);
 					}
 					await persist(registry);
-					ctx.ui.notify(
-						`Package "${pkgName}" removed.\nRun /reload to complete cleanup.`,
-						"info",
-					);
+					ctx.ui.notify(`Package "${pkgName}" removed.\nRun /reload to complete cleanup.`, "info");
 				} catch (err) {
 					ctx.ui.notify(`Error removing package: ${err instanceof Error ? err.message : String(err)}`, "error");
 				}
 			} else if (subcommand === "update") {
 				const pkgName = parts[1];
 				if (!pkgName) {
-					ctx.ui.notify("Error: package name required. Usage: /monorego-package update <name> [--version <semver>]", "error");
+					ctx.ui.notify(
+						"Error: package name required. Usage: /monorego-package update <name> [--version <semver>]",
+						"error",
+					);
 					return;
 				}
 
@@ -389,10 +378,7 @@ export default async function (pi: ExtensionAPI) {
 
 					const pkgVersion = version ?? resolvePackageVersion(source, pkgName);
 					if (!pkgVersion) {
-						ctx.ui.notify(
-							`Cannot determine version for "${pkgName}". Specify --version <semver>.`,
-							"error",
-						);
+						ctx.ui.notify(`Cannot determine version for "${pkgName}". Specify --version <semver>.`, "error");
 						return;
 					}
 
@@ -410,10 +396,7 @@ export default async function (pi: ExtensionAPI) {
 						pi.appendEntry(event.type, event.data);
 					}
 					await persist(registry);
-					ctx.ui.notify(
-						`Package "${pkgName}" updated to ${pkgVersion}.\nRun /reload to activate.`,
-						"info",
-					);
+					ctx.ui.notify(`Package "${pkgName}" updated to ${pkgVersion}.\nRun /reload to activate.`, "info");
 				} catch (err) {
 					ctx.ui.notify(`Error updating package: ${err instanceof Error ? err.message : String(err)}`, "error");
 				}
@@ -465,9 +448,12 @@ export default async function (pi: ExtensionAPI) {
 /** Human-readable labels for activation modes. */
 function modeToLabel(mode: ActivationMode): string {
 	switch (mode) {
-		case "dev": return "dev (symlink)";
-		case "git": return "git (clone + symlink)";
-		case "tarball": return "tarball (download)";
+		case "dev":
+			return "dev (symlink)";
+		case "git":
+			return "git (clone + symlink)";
+		case "tarball":
+			return "tarball (download)";
 	}
 }
 
@@ -476,11 +462,7 @@ function modeToLabel(mode: ActivationMode): string {
  * If sourceId is provided, match by URL or shortName.
  * Otherwise, find the first source containing the package.
  */
-function resolveSourceForPackage(
-	registry: MonorepoRegistry,
-	pkgName: string,
-	sourceId?: string,
-) {
+function resolveSourceForPackage(registry: MonorepoRegistry, pkgName: string, sourceId?: string) {
 	if (sourceId) {
 		const source = registry.findSource(sourceId) ?? registry.findByShortName(sourceId);
 		return source;

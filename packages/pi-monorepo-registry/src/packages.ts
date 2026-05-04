@@ -12,15 +12,13 @@
  * All file-path-dependent methods accept explicit paths for testability.
  */
 
-import { existsSync, lstatSync, mkdirSync, rmSync, symlinkSync, unlinkSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, renameSync, rmSync, symlinkSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { renameSync } from "node:fs";
-import { resolveSourceRoot, urlToDirName } from "./git.js";
-import { getExtensionsDir, getGitDir, getSettingsFilePath } from "./paths.js";
+import { resolveSourceRoot } from "./git.js";
+import type { RegistryEvent } from "./registry.js";
 import { registerExtensionPath, unregisterExtensionPath } from "./settings.js";
 import { downloadAndExtract, resolveTarballUrl } from "./tarball.js";
-import type { ActivationMode, InstalledPackage, RegistryState } from "./types.js";
-import type { RegistryEvent } from "./registry.js";
+import type { InstalledPackage, RegistryState } from "./types.js";
 
 // --------------- Entry types ---------------
 
@@ -179,19 +177,13 @@ export class PackageManager {
 	 * @returns Events for the caller to record.
 	 * @throws Error if already installed or local path doesn't exist.
 	 */
-	async installDev(
-		packageName: string,
-		sourceUrl: string,
-		options: InstallDevOptions,
-	): Promise<RegistryEvent[]> {
+	async installDev(packageName: string, sourceUrl: string, options: InstallDevOptions): Promise<RegistryEvent[]> {
 		if (findInstalled(this.state, packageName)) {
 			throw new Error(`Package "${packageName}" is already installed. Remove it first to reinstall.`);
 		}
 
 		if (!existsSync(options.localPath)) {
-			throw new Error(
-				`Local path does not exist: ${options.localPath}. Provide a valid path for --dev install.`,
-			);
+			throw new Error(`Local path does not exist: ${options.localPath}. Provide a valid path for --dev install.`);
 		}
 
 		const dirName = packageNameToDirName(packageName);
@@ -239,11 +231,7 @@ export class PackageManager {
 	 * @returns Events for the caller to record.
 	 * @throws Error if already installed or clone fails.
 	 */
-	async installGit(
-		packageName: string,
-		sourceUrl: string,
-		options: InstallGitOptions,
-	): Promise<RegistryEvent[]> {
+	async installGit(packageName: string, sourceUrl: string, options: InstallGitOptions): Promise<RegistryEvent[]> {
 		if (findInstalled(this.state, packageName)) {
 			throw new Error(`Package "${packageName}" is already installed. Remove it first to reinstall.`);
 		}
@@ -258,7 +246,7 @@ export class PackageManager {
 		if (!existsSync(packagePath)) {
 			throw new Error(
 				`Package directory not found in cloned source: ${packagePath}. ` +
-				`Source: ${sourceUrl}, packagesRoot: ${packagesRoot}.`,
+					`Source: ${sourceUrl}, packagesRoot: ${packagesRoot}.`,
 			);
 		}
 
@@ -380,10 +368,7 @@ export class PackageManager {
 	 * @returns Events for the caller to record.
 	 * @throws Error if the package is not installed.
 	 */
-	async remove(
-		packageName: string,
-		options: RemoveOptions,
-	): Promise<RegistryEvent[]> {
+	async remove(packageName: string, options: RemoveOptions): Promise<RegistryEvent[]> {
 		const index = this.state.installedPackages.findIndex((p) => p.name === packageName);
 		if (index === -1) {
 			throw new Error(`Package "${packageName}" is not installed.`);
@@ -437,7 +422,7 @@ export class PackageManager {
 		if (pkg.activationMode !== "tarball") {
 			throw new Error(
 				`Cannot update "${packageName}": update is only supported for tarball-activated packages ` +
-				`(current mode: ${pkg.activationMode}). For dev/git packages, update the source directly.`,
+					`(current mode: ${pkg.activationMode}). For dev/git packages, update the source directly.`,
 			);
 		}
 

@@ -15,8 +15,8 @@
 
 import { execSync } from "node:child_process";
 import { createWriteStream, existsSync, mkdirSync, rmSync } from "node:fs";
-import { dirname, join } from "node:path";
 import https from "node:https";
+import { join } from "node:path";
 import { URL } from "node:url";
 import { getExtensionsDir } from "./paths.js";
 import type { MonorepoSource } from "./types.js";
@@ -80,13 +80,7 @@ export function buildReleaseTag(packagePath: string, version: string): string {
  * @param version - Semver version.
  * @returns Full download URL.
  */
-export function buildTarballUrl(
-	owner: string,
-	repo: string,
-	tag: string,
-	pkgName: string,
-	version: string,
-): string {
+export function buildTarballUrl(owner: string, repo: string, tag: string, pkgName: string, version: string): string {
 	const filename = `${pkgName}-${version}.tgz`;
 	return `https://github.com/${owner}/${repo}/releases/download/${tag}/${filename}`;
 }
@@ -148,10 +142,7 @@ export interface DownloadResult {
  * @param options - Download options.
  * @returns Information about the downloaded and extracted tarball.
  */
-export async function downloadAndExtract(
-	url: string,
-	options: DownloadOptions = {},
-): Promise<DownloadResult> {
+export async function downloadAndExtract(url: string, options: DownloadOptions = {}): Promise<DownloadResult> {
 	const targetDir = options.targetDir ?? getExtensionsDir();
 	const timeout = options.timeout ?? 30_000;
 
@@ -164,7 +155,7 @@ export async function downloadAndExtract(
 	const urlObj = new URL(url);
 	const urlPathParts = urlObj.pathname.split("/");
 	const tarballName = urlPathParts[urlPathParts.length - 1];
-	if (!tarballName || !tarballName.endsWith(".tgz")) {
+	if (!tarballName?.endsWith(".tgz")) {
 		throw new Error(`Invalid tarball URL — cannot extract filename: ${url}`);
 	}
 
@@ -201,11 +192,7 @@ interface DownloadFileOptions {
  * Download a file via HTTPS to a local path.
  * Returns the size in bytes of the downloaded file.
  */
-function downloadFile(
-	url: string,
-	destPath: string,
-	options: DownloadFileOptions,
-): Promise<number> {
+function downloadFile(url: string, destPath: string, options: DownloadFileOptions): Promise<number> {
 	return new Promise((resolve, reject) => {
 		const headers: Record<string, string> = {
 			"User-Agent": "pi-monorepo-registry",
@@ -228,14 +215,8 @@ function downloadFile(
 			if (response.statusCode !== 200) {
 				response.resume();
 				const statusText = response.statusMessage ?? "Unknown";
-				console.warn(
-					`[tarball] Download failed: ${url} → HTTP ${response.statusCode} ${statusText}`,
-				);
-				reject(
-					new Error(
-						`Tarball download failed: HTTP ${response.statusCode} ${statusText} — URL: ${url}`,
-					),
-				);
+				console.warn(`[tarball] Download failed: ${url} → HTTP ${response.statusCode} ${statusText}`);
+				reject(new Error(`Tarball download failed: HTTP ${response.statusCode} ${statusText} — URL: ${url}`));
 				return;
 			}
 
@@ -294,9 +275,7 @@ export function extractTarball(tarballPath: string, targetDir: string): string {
 	} catch (err: any) {
 		const stderr = err.stderr ? String(err.stderr) : "";
 		console.warn(`[tarball] Extract failed: ${tarballPath} → ${targetDir} — ${stderr}`);
-		throw new Error(
-			`Failed to extract tarball ${tarballPath} to ${targetDir}: ${stderr || err.message}`,
-		);
+		throw new Error(`Failed to extract tarball ${tarballPath} to ${targetDir}: ${stderr || err.message}`);
 	}
 
 	// Determine the extracted directory name.

@@ -6,10 +6,9 @@
  */
 import { execSync } from "node:child_process";
 import { closeSync, existsSync, mkdirSync, openSync, rmSync, writeSync } from "node:fs";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { MonorepoSource } from "../src/types.js";
 import {
 	buildReleaseTag,
 	buildTarballUrl,
@@ -18,6 +17,7 @@ import {
 	parseGitHubUrl,
 	resolveTarballUrl,
 } from "../src/tarball.js";
+import type { MonorepoSource } from "../src/types.js";
 
 // --------------- Test fixtures ---------------
 
@@ -97,27 +97,19 @@ describe("parseGitHubUrl", () => {
 
 describe("buildReleaseTag", () => {
 	it("builds tag from packages/ path", () => {
-		expect(buildReleaseTag("packages/pi-template", "0.2.0")).toBe(
-			"pi-template-v0.2.0",
-		);
+		expect(buildReleaseTag("packages/pi-template", "0.2.0")).toBe("pi-template-v0.2.0");
 	});
 
 	it("builds tag for deeply nested package", () => {
-		expect(buildReleaseTag("packages/pi-monorepo-registry", "0.1.1")).toBe(
-			"pi-monorepo-registry-v0.1.1",
-		);
+		expect(buildReleaseTag("packages/pi-monorepo-registry", "0.1.1")).toBe("pi-monorepo-registry-v0.1.1");
 	});
 
 	it("handles packages with multiple slashes", () => {
-		expect(buildReleaseTag("packages/@scope/my-pkg", "1.0.0")).toBe(
-			"@scope--my-pkg-v1.0.0",
-		);
+		expect(buildReleaseTag("packages/@scope/my-pkg", "1.0.0")).toBe("@scope--my-pkg-v1.0.0");
 	});
 
 	it("handles version with pre-release tag", () => {
-		expect(buildReleaseTag("packages/pi-template", "0.2.0-beta.1")).toBe(
-			"pi-template-v0.2.0-beta.1",
-		);
+		expect(buildReleaseTag("packages/pi-template", "0.2.0-beta.1")).toBe("pi-template-v0.2.0-beta.1");
 	});
 });
 
@@ -164,9 +156,7 @@ describe("resolveTarballUrl", () => {
 			url: "/home/user/my-repo",
 			shortName: "my-repo",
 		};
-		expect(() => resolveTarballUrl(localSource, "pkg", "1.0.0", "packages/pkg")).toThrow(
-			/not a GitHub repository/,
-		);
+		expect(() => resolveTarballUrl(localSource, "pkg", "1.0.0", "packages/pkg")).toThrow(/not a GitHub repository/);
 	});
 });
 
@@ -244,9 +234,7 @@ describe("CI tarball round-trip", () => {
 			return;
 		}
 
-		const pkgJson = JSON.parse(
-			execSync(`cat "${pkgJsonPath}"`, { encoding: "utf-8" }),
-		);
+		const pkgJson = JSON.parse(execSync(`cat "${pkgJsonPath}"`, { encoding: "utf-8" }));
 		const pkgName = pkgJson.name as string;
 		const pkgVersion = (pkgJson.version as string) ?? "0.0.0";
 		const tarballName = `${pkgName}-${pkgVersion}.tgz`;
@@ -255,8 +243,8 @@ describe("CI tarball round-trip", () => {
 		// Step 1: Pack with the EXACT same tar command as release.yml
 		execSync(
 			`tar -czf "${tarballPath}" ` +
-			`--exclude='node_modules' --exclude='.git' --exclude='.*' ` +
-			`-C "$(dirname '${pkgPath}')" "$(basename '${pkgPath}')"`,
+				`--exclude='node_modules' --exclude='.git' --exclude='.*' ` +
+				`-C "$(dirname '${pkgPath}')" "$(basename '${pkgPath}')"`,
 			{ cwd: process.cwd(), stdio: "pipe" },
 		);
 
@@ -275,7 +263,7 @@ describe("CI tarball round-trip", () => {
 		expect(existsSync(join(extractedPath, "src"))).toBe(true);
 		expect(
 			existsSync(join(extractedPath, "src")) &&
-			execSync(`ls "${join(extractedPath, "src")}"`, { encoding: "utf-8" }).trim().length > 0,
+				execSync(`ls "${join(extractedPath, "src")}"`, { encoding: "utf-8" }).trim().length > 0,
 		).toBe(true);
 
 		// 3b: package.json exists and has pi manifest (pi.extensions or pi-package keyword)
@@ -283,8 +271,7 @@ describe("CI tarball round-trip", () => {
 			execSync(`cat "${join(extractedPath, "package.json")}"`, { encoding: "utf-8" }),
 		);
 		const hasPiExtensions = !!extractedPkgJson.pi?.extensions;
-		const hasPiKeyword = Array.isArray(extractedPkgJson.keywords) &&
-			extractedPkgJson.keywords.includes("pi-package");
+		const hasPiKeyword = Array.isArray(extractedPkgJson.keywords) && extractedPkgJson.keywords.includes("pi-package");
 		expect(hasPiExtensions || hasPiKeyword).toBe(true);
 
 		// 3c: No node_modules/ directory
@@ -303,16 +290,11 @@ describe("CI tarball round-trip", () => {
 			return;
 		}
 
-		const pkgJson = JSON.parse(
-			execSync(`cat "${pkgJsonPath}"`, { encoding: "utf-8" }),
-		);
+		const pkgJson = JSON.parse(execSync(`cat "${pkgJsonPath}"`, { encoding: "utf-8" }));
 		const pkgVersion = (pkgJson.version as string) ?? "0.0.0";
 
 		// The tag format CI builds: strip "packages/", replace "/" with "--", then "-v" + version
-		const ciTag = execSync(
-			`echo "${pkgPath}" | sed 's|packages/||; s|/|--|g'`,
-			{ encoding: "utf-8" },
-		).trim() + `-v${pkgVersion}`;
+		const ciTag = `${execSync(`echo "${pkgPath}" | sed 's|packages/||; s|/|--|g'`, { encoding: "utf-8" }).trim()}-v${pkgVersion}`;
 
 		// Our tarball.ts function should produce the same tag
 		const codeTag = buildReleaseTag(pkgPath, pkgVersion);
@@ -328,9 +310,7 @@ describe("CI tarball round-trip", () => {
 			return;
 		}
 
-		const pkgJson = JSON.parse(
-			execSync(`cat "${pkgJsonPath}"`, { encoding: "utf-8" }),
-		);
+		const pkgJson = JSON.parse(execSync(`cat "${pkgJsonPath}"`, { encoding: "utf-8" }));
 		const pkgName = pkgJson.name as string;
 		const pkgVersion = (pkgJson.version as string) ?? "0.0.0";
 
@@ -355,7 +335,8 @@ describe("downloadAndExtract", () => {
 
 	it("fails with informative error for HTTP 404", async () => {
 		// Use real github.com but a nonexistent release — should get 404
-		const url = "https://github.com/nonexistent-owner/nonexistent-repo/releases/download/missing--v0.0.1/missing-0.0.1.tgz";
+		const url =
+			"https://github.com/nonexistent-owner/nonexistent-repo/releases/download/missing--v0.0.1/missing-0.0.1.tgz";
 		await expect(
 			downloadAndExtract(url, {
 				targetDir: tempDir,

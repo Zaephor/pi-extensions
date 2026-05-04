@@ -6,16 +6,12 @@
  * via a local tarball fixture (no network calls).
  */
 import { execSync } from "node:child_process";
-import { closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, rmSync, writeSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, lstatSync, mkdirSync, openSync, readFileSync, rmSync, writeSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { InstalledPackage, RegistryState } from "../src/types.js";
-import {
-	PACKAGE_ENTRY_TYPES,
-	PackageManager,
-	packageNameToDirName,
-} from "../src/packages.js";
+import { PACKAGE_ENTRY_TYPES, PackageManager, packageNameToDirName } from "../src/packages.js";
+import type { RegistryState } from "../src/types.js";
 
 // --------------- Test fixtures ---------------
 
@@ -513,9 +509,7 @@ describe("PackageManager.remove", () => {
 		const state = createEmptyState();
 		const mgr = new PackageManager(state);
 
-		await expect(mgr.remove("nonexistent", { settingsFilePath, extensionsDir })).rejects.toThrow(
-			/not installed/,
-		);
+		await expect(mgr.remove("nonexistent", { settingsFilePath, extensionsDir })).rejects.toThrow(/not installed/);
 	});
 });
 
@@ -564,9 +558,7 @@ describe("PackageManager.update", () => {
 		spy.mockRestore();
 
 		// Verify new version is in place
-		const updatedPkgJson = JSON.parse(
-			readFileSync(join(extensionsDir, "pi-template", "package.json"), "utf-8"),
-		);
+		const updatedPkgJson = JSON.parse(readFileSync(join(extensionsDir, "pi-template", "package.json"), "utf-8"));
 		expect(updatedPkgJson.version).toBe("0.2.0");
 
 		// State updated
@@ -632,9 +624,7 @@ describe("PackageManager.update", () => {
 
 		// Mock downloadAndExtract to throw
 		const tarball = await import("../src/tarball.js");
-		const spy = vi.spyOn(tarball, "downloadAndExtract").mockRejectedValue(
-			new Error("Download failed: HTTP 404"),
-		);
+		const spy = vi.spyOn(tarball, "downloadAndExtract").mockRejectedValue(new Error("Download failed: HTTP 404"));
 
 		await expect(
 			mgr.update("pi-template", {

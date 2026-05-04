@@ -5,17 +5,15 @@
  * migrate older state files, and handle corruption gracefully.
  */
 
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { mkdtempSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getStateFilePath } from "../src/paths.js";
-import type { InstalledPackage, MonorepoSource, RegistryState } from "../src/types.js";
 import { loadState, saveState } from "../src/persistence.js";
+import type { RegistryState } from "../src/types.js";
 
 let tmpDir: string;
-let originalAgentDir: string | undefined;
+let _originalAgentDir: string | undefined;
 
 function setupTmpDir(): string {
 	tmpDir = mkdtempSync(join(tmpdir(), "s01-persistence-"));
@@ -139,14 +137,17 @@ describe("loadState", () => {
 
 	it("filters out invalid sources", async () => {
 		const statePath = join(tmpDir, "state.json");
-		writeFileSync(statePath, JSON.stringify({
-			sources: [
-				{ url: "https://github.com/org/repo" },
-				{ noUrl: true }, // invalid — missing url
-				{ url: "https://github.com/org/repo2" },
-			],
-			installedPackages: [],
-		}));
+		writeFileSync(
+			statePath,
+			JSON.stringify({
+				sources: [
+					{ url: "https://github.com/org/repo" },
+					{ noUrl: true }, // invalid — missing url
+					{ url: "https://github.com/org/repo2" },
+				],
+				installedPackages: [],
+			}),
+		);
 
 		const loaded = await loadState();
 		expect(loaded.sources.length).toBe(2);
@@ -154,14 +155,17 @@ describe("loadState", () => {
 
 	it("filters out invalid installedPackages", async () => {
 		const statePath = join(tmpDir, "state.json");
-		writeFileSync(statePath, JSON.stringify({
-			sources: [],
-			installedPackages: [
-				{ name: "valid-pkg", targetPath: "/some/path" },
-				{ noName: true }, // invalid — missing name
-				{ name: "no-target" }, // invalid — missing targetPath
-			],
-		}));
+		writeFileSync(
+			statePath,
+			JSON.stringify({
+				sources: [],
+				installedPackages: [
+					{ name: "valid-pkg", targetPath: "/some/path" },
+					{ noName: true }, // invalid — missing name
+					{ name: "no-target" }, // invalid — missing targetPath
+				],
+			}),
+		);
 
 		const loaded = await loadState();
 		expect(loaded.installedPackages.length).toBe(1);
@@ -170,10 +174,13 @@ describe("loadState", () => {
 
 	it("fills in defaults for missing source fields", async () => {
 		const statePath = join(tmpDir, "state.json");
-		writeFileSync(statePath, JSON.stringify({
-			sources: [{ url: "https://github.com/org/repo" }],
-			installedPackages: [],
-		}));
+		writeFileSync(
+			statePath,
+			JSON.stringify({
+				sources: [{ url: "https://github.com/org/repo" }],
+				installedPackages: [],
+			}),
+		);
 
 		const loaded = await loadState();
 		const source = loaded.sources[0];
@@ -195,9 +202,7 @@ describe("saveState + loadState roundtrip", () => {
 					url: "https://github.com/org/repo",
 					shortName: "org/repo",
 					packagesRoot: "packages",
-					packages: [
-						{ name: "pkg-a", description: "Test", version: "1.0.0", path: "/path/pkg-a", isPiPackage: true },
-					],
+					packages: [{ name: "pkg-a", description: "Test", version: "1.0.0", path: "/path/pkg-a", isPiPackage: true }],
 					lastUpdated: "2025-01-01T00:00:00Z",
 					rootPath: "/git/org/repo",
 				},

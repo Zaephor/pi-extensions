@@ -5,8 +5,7 @@
  * settings keys, and graceful handling of missing/malformed files.
  */
 
-import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
-import { mkdtempSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -331,10 +330,7 @@ describe("concurrent write safety", () => {
 		writeFileSync(filePath, JSON.stringify({ extensions: [], version: 1 }));
 
 		// Register two paths concurrently
-		await Promise.all([
-			registerExtensionPath(filePath, "/path/a"),
-			registerExtensionPath(filePath, "/path/b"),
-		]);
+		await Promise.all([registerExtensionPath(filePath, "/path/a"), registerExtensionPath(filePath, "/path/b")]);
 
 		const result = JSON.parse(readFileSync(filePath, "utf-8"));
 		// Both paths should be present (or at least one, if the race was lost

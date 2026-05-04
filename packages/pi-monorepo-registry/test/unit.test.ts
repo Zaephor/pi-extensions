@@ -1,9 +1,3 @@
-/**
- * Unit tests for pi-monorepo-registry — discovery logic, registry state,
- * and command handler wiring.
- */
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { discoverPackages, isPiCompatible } from "../src/discovery.js";
 import { ENTRY_TYPES, MonorepoRegistry } from "../src/registry.js";
