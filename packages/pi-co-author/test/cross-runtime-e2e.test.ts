@@ -9,8 +9,8 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
-	gsdAvailable,
 	getExtensionsDirFor,
+	gsdAvailable,
 	installViaRegistry,
 	isSymlinked,
 	loadViaGsd,
