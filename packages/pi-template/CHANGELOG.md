@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/Zaephor/pi-extensions/compare/pi-template-v0.3.0...pi-template-v0.3.1) (2026-05-04)
+
+
+### Bug Fixes
+
+* Use files allowlist for release tarballs instead of exclusion-based packing ([6cd6716](https://github.com/Zaephor/pi-extensions/commit/6cd671671111a282654c38a83bfcac249d80aa79))
+
 ## [0.3.0](https://github.com/Zaephor/pi-extensions/compare/pi-template-v0.2.0...pi-template-v0.3.0) (2026-05-04)
 
 
