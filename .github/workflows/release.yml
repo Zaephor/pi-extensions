@@ -136,22 +136,55 @@ jobs:
           echo "Package name: $(jq -r '.name' '${{ matrix.path }}/package.json')"
           echo "Package version: $(jq -r '.version' '${{ matrix.path }}/package.json')"
 
-      # Create tarball with exclusions — no node_modules, no .git, no hidden files
+      # Create tarball using files allowlist from package.json plus essential files
       - name: Pack tarball
         run: |
           pkg_name=$(jq -r '.name' "${{ matrix.path }}/package.json")
           pkg_version=$(jq -r '.version' "${{ matrix.path }}/package.json")
           tarball="${pkg_name}-${pkg_version}.tgz"
+          
+          # Build include list from package.json "files" + essential files
+          # Always include: package.json, README.md, LICENSE, CHANGELOG.md
+          includes=$(jq -r '(.files // []) | map(".*/\(.)/") | join(" ")' "${{ matrix.path }}/package.json")
+          # Add individual essential files that exist
+          for f in package.json README.md LICENSE CHANGELOG.md; do
+            if [ -f "${{ matrix.path }}/$f" ]; then
+              includes="$includes .*/$f"
+            fi
+          done
+          
           echo "Creating tarball: ${tarball} from ${{ matrix.path }}"
-          tar -czf "$tarball" \
-            --exclude='node_modules' \
-            --exclude='.git' \
-            --exclude='.*' \
-            -C "$(dirname '${{ matrix.path }}')" "$(basename '${{ matrix.path }}')"
+          echo "Including: $includes"
+          
+          # Create tarball using find + tar for precise control
+          staging=$(mktemp -d)
+          mkdir -p "$staging/$(basename '${{ matrix.path }}')"
+          
+          # Copy each file from the files allowlist + essential files
+          pkg_src="${{ matrix.path }}"
+          pkg_dst="$staging/$(basename '${{ matrix.path }}')"
+          
+          # Always copy essential root files
+          for f in package.json README.md LICENSE CHANGELOG.md; do
+            [ -f "$pkg_src/$f" ] && cp "$pkg_src/$f" "$pkg_dst/$f"
+          done
+          
+          # Copy directories listed in "files"
+          for dir in $(jq -r '(.files // []) | .[]' "${{ matrix.path }}/package.json"); do
+            if [ -d "$pkg_src/$dir" ]; then
+              cp -r "$pkg_src/$dir" "$pkg_dst/$dir"
+            elif [ -f "$pkg_src/$dir" ]; then
+              cp "$pkg_src/$dir" "$pkg_dst/$dir"
+            fi
+          done
+          
+          tar -czf "$tarball" -C "$staging" "$(basename '${{ matrix.path }}')"
+          rm -rf "$staging"
+          
           echo "tarball=$tarball" >> "$GITHUB_ENV"
           # Validate tarball contents
           echo "--- Tarball contents ---"
-          tar -tzf "$tarball" | head -30
+          tar -tzf "$tarball"
           echo "--- Tarball size ---"
           ls -lh "$tarball"
 
@@ -198,6 +231,38 @@ jobs:
             errors=$((errors + 1))
           else
             echo "✅ No node_modules/ in tarball"
+          fi
+          
+          # 4. Check no dist/ directory (build artifacts don't belong in release tarballs)
+          if [ -d "${validate_dir}/${pkg_dir}/dist" ]; then
+            echo "❌ FAIL: dist/ found in tarball — only src/ should be shipped"
+            errors=$((errors + 1))
+          else
+            echo "✅ No dist/ in tarball"
+          fi
+          
+          # 5. Check no test/ directory
+          if [ -d "${validate_dir}/${pkg_dir}/test" ]; then
+            echo "❌ FAIL: test/ found in tarball — tests should not be in release tarballs"
+            errors=$((errors + 1))
+          else
+            echo "✅ No test/ in tarball"
+          fi
+          
+          # 6. Check no .tsbuildinfo files
+          if find "${validate_dir}/${pkg_dir}" -name '*.tsbuildinfo' | grep -q .; then
+            echo "❌ FAIL: .tsbuildinfo found in tarball"
+            errors=$((errors + 1))
+          else
+            echo "✅ No .tsbuildinfo in tarball"
+          fi
+          
+          # 7. Check no nested .tgz files
+          if find "${validate_dir}/${pkg_dir}" -name '*.tgz' | grep -q .; then
+            echo "❌ FAIL: nested .tgz found in tarball"
+            errors=$((errors + 1))
+          else
+            echo "✅ No nested .tgz in tarball"
           fi
           
           # Summary

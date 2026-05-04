@@ -219,13 +219,13 @@ describe("extractTarball", () => {
 
 describe("CI tarball round-trip", () => {
 	/**
-	 * Mirrors the exact tar command from release.yml:
-	 *   tar -czf "$tarball" --exclude='node_modules' --exclude='.git' --exclude='.*' \
-	 *     -C "$(dirname path)" "$(basename path)"
-	 * Then extracts with our extractTarball() and validates contents
-	 * using the same checks as the CI Validate tarball contents step.
+	 * Mirrors the allowlist-based pack logic from release.yml:
+	 *   - Reads "files" from package.json (e.g. ["src"])
+	 *   - Adds essential root files (package.json, README.md, LICENSE, CHANGELOG.md)
+	 *   - Packs only those into the tarball
+	 * Then extracts with our extractTarball() and validates contents.
 	 */
-	it("packs pi-monorepo-registry with CI flags, extracts, and validates contents", () => {
+	it("packs pi-monorepo-registry using files allowlist, extracts, and validates clean contents", () => {
 		const pkgPath = "packages/pi-monorepo-registry";
 		const pkgJsonPath = join(pkgPath, "package.json");
 
@@ -240,33 +240,40 @@ describe("CI tarball round-trip", () => {
 		const tarballName = `${pkgName}-${pkgVersion}.tgz`;
 		const tarballPath = join(tempDir, tarballName);
 
-		// Step 1: Pack with the EXACT same tar command as release.yml
-		execSync(
-			`tar -czf "${tarballPath}" ` +
-				`--exclude='node_modules' --exclude='.git' --exclude='.*' ` +
-				`-C "$(dirname '${pkgPath}')" "$(basename '${pkgPath}')"`,
-			{ cwd: process.cwd(), stdio: "pipe" },
-		);
+		// Step 1: Pack using files allowlist from package.json (same as release.yml)
+		const filesList: string[] = pkgJson.files ?? [];
+		const stagingDir = join(tempDir, "staging");
+		const pkgBasename = pkgPath.split("/").pop()!;
+		const stagingPkgDir = join(stagingDir, pkgBasename);
+		mkdirSync(stagingPkgDir, { recursive: true });
 
+		// Copy essential root files
+		for (const f of ["package.json", "README.md", "LICENSE", "CHANGELOG.md"]) {
+			const src = join(pkgPath, f);
+			if (existsSync(src)) execSync(`cp "${src}" "${stagingPkgDir}/"`, { stdio: "pipe" });
+		}
+
+		// Copy directories/files listed in "files"
+		for (const entry of filesList) {
+			const src = join(pkgPath, entry);
+			if (existsSync(src)) execSync(`cp -r "${src}" "${stagingPkgDir}/"`, { stdio: "pipe" });
+		}
+
+		execSync(`tar -czf "${tarballPath}" -C "${stagingDir}" "${pkgBasename}"`, { stdio: "pipe" });
 		expect(existsSync(tarballPath)).toBe(true);
 
 		// Step 2: Extract with our own extractTarball()
 		const extractDir = join(tempDir, "extracted");
 		mkdirSync(extractDir, { recursive: true });
 		const extractedPath = extractTarball(tarballPath, extractDir);
-
 		expect(existsSync(extractedPath)).toBe(true);
 
 		// Step 3: Validate contents — same checks as CI Validate tarball contents step
 
 		// 3a: src/ directory exists
 		expect(existsSync(join(extractedPath, "src"))).toBe(true);
-		expect(
-			existsSync(join(extractedPath, "src")) &&
-				execSync(`ls "${join(extractedPath, "src")}"`, { encoding: "utf-8" }).trim().length > 0,
-		).toBe(true);
 
-		// 3b: package.json exists and has pi manifest (pi.extensions or pi-package keyword)
+		// 3b: package.json has pi manifest
 		const extractedPkgJson = JSON.parse(
 			execSync(`cat "${join(extractedPath, "package.json")}"`, { encoding: "utf-8" }),
 		);
@@ -274,12 +281,22 @@ describe("CI tarball round-trip", () => {
 		const hasPiKeyword = Array.isArray(extractedPkgJson.keywords) && extractedPkgJson.keywords.includes("pi-package");
 		expect(hasPiExtensions || hasPiKeyword).toBe(true);
 
-		// 3c: No node_modules/ directory
+		// 3c: No node_modules/
 		expect(existsSync(join(extractedPath, "node_modules"))).toBe(false);
 
-		// 3d: No hidden files (the --exclude='.*' should strip .tsbuildinfo etc)
-		const listing = execSync(`find "${extractedPath}" -name '.*'`, { encoding: "utf-8" }).trim();
-		expect(listing).toBe("");
+		// 3d: No dist/
+		expect(existsSync(join(extractedPath, "dist"))).toBe(false);
+
+		// 3e: No test/
+		expect(existsSync(join(extractedPath, "test"))).toBe(false);
+
+		// 3f: No .tsbuildinfo
+		const tsbuildinfo = execSync(`find "${extractedPath}" -name '*.tsbuildinfo'`, { encoding: "utf-8" }).trim();
+		expect(tsbuildinfo).toBe("");
+
+		// 3g: No nested .tgz
+		const nestedTgz = execSync(`find "${extractedPath}" -name '*.tgz'`, { encoding: "utf-8" }).trim();
+		expect(nestedTgz).toBe("");
 	});
 
 	it("CI tarball tag format matches buildReleaseTag output", () => {

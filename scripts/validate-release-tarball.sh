@@ -48,6 +48,7 @@ tar -czf "$tarball" \
   --exclude='node_modules' \
   --exclude='.git' \
   --exclude='.*' \
+  --exclude='*.tgz' \
   -C "$(dirname "${PKG_PATH}")" "$(basename "${PKG_PATH}")"
 
 echo "Created: ${tarball}"
@@ -94,6 +95,38 @@ if [ -d "${validate_dir}/${pkg_dir}/node_modules" ]; then
   errors=$((errors + 1))
 else
   echo "✅ No node_modules/ in tarball"
+fi
+
+# Check 4: No dist/ directory
+if [ -d "${validate_dir}/${pkg_dir}/dist" ]; then
+  echo "❌ FAIL: dist/ found in tarball"
+  errors=$((errors + 1))
+else
+  echo "✅ No dist/ in tarball"
+fi
+
+# Check 5: No test/ directory
+if [ -d "${validate_dir}/${pkg_dir}/test" ]; then
+  echo "❌ FAIL: test/ found in tarball"
+  errors=$((errors + 1))
+else
+  echo "✅ No test/ in tarball"
+fi
+
+# Check 6: No .tsbuildinfo files
+if find "${validate_dir}/${pkg_dir}" -name '*.tsbuildinfo' | grep -q .; then
+  echo "❌ FAIL: .tsbuildinfo found in tarball"
+  errors=$((errors + 1))
+else
+  echo "✅ No .tsbuildinfo in tarball"
+fi
+
+# Check 7: No nested .tgz files
+if find "${validate_dir}/${pkg_dir}" -name '*.tgz' | grep -q .; then
+  echo "❌ FAIL: nested .tgz found in tarball"
+  errors=$((errors + 1))
+else
+  echo "✅ No nested .tgz in tarball"
 fi
 
 # Summary
