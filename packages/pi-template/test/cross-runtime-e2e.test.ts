@@ -10,8 +10,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
-	gsdAvailable,
 	getExtensionsDirFor,
+	gsdAvailable,
 	installViaRegistry,
 	isSymlinked,
 	loadViaGsd,
