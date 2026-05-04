@@ -33,7 +33,5 @@
 		"@mariozechner/pi-tui": "^0.70.0",
 		"typebox": "^1.1.0"
 	},
-	"dependencies": {
-		"jiti": "^2.6.1"
-	}
+	"dependencies": {}
 }

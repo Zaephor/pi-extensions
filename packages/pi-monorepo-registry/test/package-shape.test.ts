@@ -105,9 +105,11 @@ describe("package shape", () => {
 			"src/index.ts",
 			"src/discovery.ts",
 			"src/registry.ts",
-			"src/activation.ts",
-			"src/deps.ts",
+			"src/settings.ts",
+			"src/persistence.ts",
 			"src/types.ts",
+			"src/paths.ts",
+			"src/git.ts",
 			"package.json",
 			"README.md",
 		];

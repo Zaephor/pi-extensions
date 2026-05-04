@@ -1,37 +1,37 @@
 /**
  * MonorepoRegistry — manages registered monorepo sources and their discovered packages.
  *
- * State is persisted via pi.appendEntry() so transitions are recorded in session history.
- * The registry itself is stateless between calls — it reconstructs from the last known state
- * passed to it, making it easy to test and reason about.
+ * The registry is stateless between calls — it reconstructs from the last known state
+ * passed to it, making it easy to test and reason about. State mutations are returned
+ * as event data so the caller (index.ts) can record them via pi.appendEntry().
  */
 
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { discoverPackages } from "./discovery.js";
 import { extractShortName, resolveSourceRoot } from "./git.js";
 import type { MonorepoSource, PackageInfo, RegistryState } from "./types.js";
 
-/** Entry types recorded via pi.appendEntry(). */
+/** Entry types for registry state transitions. */
 export const ENTRY_TYPES = {
 	SOURCE_ADDED: "monorepo-source-added",
 	SOURCE_REMOVED: "monorepo-source-removed",
 	PACKAGES_DISCOVERED: "monorepo-packages-discovered",
-	PACKAGE_INSTALLED: "monorepo-package-installed",
-	PACKAGE_REMOVED: "monorepo-package-removed",
 } as const;
+
+/** Event data returned by registry mutations for the caller to record. */
+export interface RegistryEvent {
+	type: string;
+	data: Record<string, unknown>;
+}
 
 /**
  * Manages monorepo source registrations and package discovery.
  *
  * Usage:
- *   const registry = new MonorepoRegistry(pi, state);
- *   await registry.addSource("https://github.com/example/monorepo", "packages");
+ *   const registry = new MonorepoRegistry(state);
+ *   const { source, events } = await registry.addSource("https://github.com/example/monorepo", "packages");
  */
 export class MonorepoRegistry {
-	constructor(
-		private readonly pi: ExtensionAPI,
-		private state: RegistryState,
-	) {}
+	constructor(private state: RegistryState) {}
 
 	/** Get current registry state (immutable snapshot). */
 	getState(): Readonly<RegistryState> {
@@ -66,10 +66,14 @@ export class MonorepoRegistry {
 	 * @param packagesRoot - Subdirectory containing packages (default: "packages").
 	 * @param monorepoRoot - Override for the actual filesystem path (useful for local/cloned repos).
 	 *   Defaults to `url` (assumes url is a local path).
-	 * @returns The newly created MonorepoSource.
+	 * @returns The newly created MonorepoSource and events for the caller to record.
 	 * @throws Error if the source is already registered.
 	 */
-	async addSource(url: string, packagesRoot = "packages", monorepoRoot?: string): Promise<MonorepoSource> {
+	async addSource(
+		url: string,
+		packagesRoot = "packages",
+		monorepoRoot?: string,
+	): Promise<{ source: MonorepoSource; events: RegistryEvent[] }> {
 		if (this.findSource(url)) {
 			throw new Error(`Source already registered: ${url}`);
 		}
@@ -95,31 +99,40 @@ export class MonorepoRegistry {
 
 		this.state.sources.push(source);
 
-		this.pi.appendEntry(ENTRY_TYPES.SOURCE_ADDED, {
-			source: url,
-			packagesRoot,
-			packageCount: packages.length,
-			timestamp: source.lastUpdated,
+		const events: RegistryEvent[] = [];
+
+		events.push({
+			type: ENTRY_TYPES.SOURCE_ADDED,
+			data: {
+				source: url,
+				packagesRoot,
+				packageCount: packages.length,
+				timestamp: source.lastUpdated,
+			},
 		});
 
 		if (packages.length > 0) {
-			this.pi.appendEntry(ENTRY_TYPES.PACKAGES_DISCOVERED, {
-				source: url,
-				packages: packages.map((p) => p.name),
-				timestamp: source.lastUpdated,
+			events.push({
+				type: ENTRY_TYPES.PACKAGES_DISCOVERED,
+				data: {
+					source: url,
+					packages: packages.map((p) => p.name),
+					timestamp: source.lastUpdated,
+				},
 			});
 		}
 
-		return source;
+		return { source, events };
 	}
 
 	/**
 	 * Remove a registered monorepo source.
 	 *
 	 * @param url - URL of the source to remove.
+	 * @returns Event data for the caller to record.
 	 * @throws Error if the source is not found.
 	 */
-	removeSource(url: string): void {
+	removeSource(url: string): RegistryEvent {
 		const index = this.state.sources.findIndex((s) => s.url === url);
 		if (index === -1) {
 			throw new Error(`Source not found: ${url}`);
@@ -127,10 +140,13 @@ export class MonorepoRegistry {
 
 		this.state.sources.splice(index, 1);
 
-		this.pi.appendEntry(ENTRY_TYPES.SOURCE_REMOVED, {
-			source: url,
-			timestamp: new Date().toISOString(),
-		});
+		return {
+			type: ENTRY_TYPES.SOURCE_REMOVED,
+			data: {
+				source: url,
+				timestamp: new Date().toISOString(),
+			},
+		};
 	}
 
 	/**
@@ -138,9 +154,12 @@ export class MonorepoRegistry {
 	 *
 	 * @param identifier - URL or shortName of the source to update, or undefined to update all.
 	 * @param monorepoRoot - Override for the filesystem path.
-	 * @returns Updated source(s).
+	 * @returns Updated source(s) and events for the caller to record.
 	 */
-	async updateSource(identifier?: string, monorepoRoot?: string): Promise<MonorepoSource[]> {
+	async updateSource(
+		identifier?: string,
+		monorepoRoot?: string,
+	): Promise<{ updated: MonorepoSource[]; events: RegistryEvent[] }> {
 		let sources: MonorepoSource[];
 		if (identifier) {
 			const found = this.findSource(identifier) ?? this.findByShortName(identifier);
@@ -153,6 +172,7 @@ export class MonorepoRegistry {
 		}
 
 		const updated: MonorepoSource[] = [];
+		const events: RegistryEvent[] = [];
 
 		for (const source of sources) {
 			const resolved = monorepoRoot ? { rootPath: monorepoRoot, cloned: false } : resolveSourceRoot(source.url);
@@ -169,14 +189,17 @@ export class MonorepoRegistry {
 			source.rootPath = root;
 			updated.push(source);
 
-			this.pi.appendEntry(ENTRY_TYPES.PACKAGES_DISCOVERED, {
-				source: source.url,
-				packages: packages.map((p) => p.name),
-				timestamp: source.lastUpdated,
+			events.push({
+				type: ENTRY_TYPES.PACKAGES_DISCOVERED,
+				data: {
+					source: source.url,
+					packages: packages.map((p) => p.name),
+					timestamp: source.lastUpdated,
+				},
 			});
 		}
 
-		return updated;
+		return { updated, events };
 	}
 
 	/**

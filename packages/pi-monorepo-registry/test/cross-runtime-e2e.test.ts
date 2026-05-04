@@ -3,12 +3,11 @@
  *
  * pi-monorepo-registry is the only package installed natively by pi/gsd
  * (referenced from root package.json pi.extensions). All other packages
- * are installed through it via /monorepo-install.
+ * are installed through it via the settings.json bridge (S02+).
  *
  * This test verifies:
- * 1. The registry loads natively via pi SDK and registers its commands
- * 2. The registry loads natively via gsd SDK and registers its commands
- * 3. Installing a package via the registry scopes it to the correct agent dir
+ * 1. The registry loads natively via pi SDK and registers /monorego-registry
+ * 2. The registry loads natively via gsd SDK and registers /monorego-registry
  */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,8 +24,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const registrySrc = path.resolve(__dirname, "../src/index.ts");
-const _repoRoot = path.resolve(__dirname, "../../..");
-const _installTarget = "pi-co-author";
 
 resetIds();
 
@@ -38,7 +35,6 @@ describe("Scenario 1: Load registry via pi SDK", () => {
 
 	beforeAll(async () => {
 		const agentDir = makeTemp(`pi-reg-${nextId()}`);
-		// Load registry as a native extension via additionalExtensionPaths
 		const { DefaultResourceLoader, createAgentSession, SessionManager } = await import("@mariozechner/pi-coding-agent");
 		const loader = new DefaultResourceLoader({
 			cwd: process.cwd(),
@@ -63,24 +59,17 @@ describe("Scenario 1: Load registry via pi SDK", () => {
 		expect(result.extensionsResult.extensions.length).toBeGreaterThanOrEqual(1);
 	});
 
-	it("registers /monorepo-install command", () => {
-		const has = result.extensionsResult.extensions.some((ext: any) => ext.commands.has("monorepo-install"));
+	it("registers /monorego-registry command", () => {
+		const has = result.extensionsResult.extensions.some((ext: any) => ext.commands.has("monorego-registry"));
 		expect(has).toBe(true);
 	});
 
-	it("registers /monorepo-registry command", () => {
-		const has = result.extensionsResult.extensions.some((ext: any) => ext.commands.has("monorepo-registry"));
-		expect(has).toBe(true);
-	});
-
-	it("registers /monorepo-list command", () => {
-		const has = result.extensionsResult.extensions.some((ext: any) => ext.commands.has("monorepo-list"));
-		expect(has).toBe(true);
-	});
-
-	it("registers /monorepo-remove command", () => {
-		const has = result.extensionsResult.extensions.some((ext: any) => ext.commands.has("monorepo-remove"));
-		expect(has).toBe(true);
+	it("registers exactly one command", () => {
+		let totalCommands = 0;
+		for (const ext of result.extensionsResult.extensions) {
+			totalCommands += ext.commands.size;
+		}
+		expect(totalCommands).toBe(1);
 	});
 });
 
@@ -123,15 +112,8 @@ describe.skipIf(!gsdAvailable)("Scenario 2: Load registry via gsd SDK", () => {
 		expect(result.extensionsResult.extensions.length).toBeGreaterThanOrEqual(1);
 	});
 
-	it("registers all four commands", () => {
-		const ext = result.extensionsResult.extensions.find((e: any) => e.commands.has("monorepo-install"));
+	it("registers /monorego-registry command", () => {
+		const ext = result.extensionsResult.extensions.find((e: any) => e.commands.has("monorego-registry"));
 		expect(ext).toBeDefined();
-		expect(ext!.commands.has("monorepo-registry")).toBe(true);
-		expect(ext!.commands.has("monorepo-list")).toBe(true);
-		expect(ext!.commands.has("monorepo-remove")).toBe(true);
 	});
 });
-
-// Note: Install-via-registry scenarios (pi-only, gsd-only, both) are covered by
-// pi-template and pi-co-author cross-runtime tests, which use the same
-// installViaRegistry helper. The registry's unique responsibility is native loading.

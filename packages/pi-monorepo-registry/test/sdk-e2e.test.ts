@@ -1,6 +1,6 @@
 /**
  * SDK e2e test — uses pi's real SDK to load the pi-monorepo-registry extension
- * and verify all registrations via createAgentSession + DefaultResourceLoader.
+ * and verify registrations via createAgentSession + DefaultResourceLoader.
  *
  * This proves the extension works end-to-end with pi's real runtime (jiti),
  * not just with recording mocks.
@@ -68,29 +68,20 @@ describe("SDK e2e — pi-monorepo-registry extension via createAgentSession", ()
 		expect(matching.length).toBeGreaterThanOrEqual(1);
 	});
 
-	const EXPECTED_COMMANDS = [
-		{ name: "monorepo-list", descriptionContains: "list" },
-		{ name: "monorepo-install", descriptionContains: "install" },
-		{ name: "monorepo-remove", descriptionContains: "remove" },
-		{ name: "monorepo-registry", descriptionContains: "registry" },
-	] as const;
-
-	for (const { name, descriptionContains } of EXPECTED_COMMANDS) {
-		it(`registers the ${name} command`, () => {
-			let cmd: any = null;
-			for (const ext of extensionsResult.extensions) {
-				if (ext.commands.has(name)) {
-					cmd = ext.commands.get(name);
-					break;
-				}
+	it("registers the monorego-registry command", () => {
+		let cmd: any = null;
+		for (const ext of extensionsResult.extensions) {
+			if (ext.commands.has("monorego-registry")) {
+				cmd = ext.commands.get("monorego-registry");
+				break;
 			}
-			expect(cmd).not.toBeNull();
-			expect(cmd.name).toBe(name);
-			expect(cmd.description).toBeTruthy();
-			expect(cmd.description.toLowerCase()).toContain(descriptionContains);
-			expect(typeof cmd.handler).toBe("function");
-		});
-	}
+		}
+		expect(cmd).not.toBeNull();
+		expect(cmd.name).toBe("monorego-registry");
+		expect(cmd.description).toBeTruthy();
+		expect(cmd.description.toLowerCase()).toContain("registry");
+		expect(typeof cmd.handler).toBe("function");
+	});
 
 	it("subscribes to session_start event", () => {
 		let found = false;
@@ -103,17 +94,17 @@ describe("SDK e2e — pi-monorepo-registry extension via createAgentSession", ()
 		expect(found).toBe(true);
 	});
 
-	it("registers exactly four commands", () => {
+	it("registers exactly one command", () => {
 		let totalCommands = 0;
 		for (const ext of extensionsResult.extensions) {
 			totalCommands += ext.commands.size;
 		}
-		expect(totalCommands).toBe(4);
+		expect(totalCommands).toBe(1);
 	});
 });
 
 /**
- * Reload cycle test — simulates the /monorepo-install → /reload → /monorepo-remove → /reload flow.
+ * Reload cycle test — simulates the symlink activation and removal flow.
  *
  * UAT criteria 4 & 6: After activation (symlink) and reload, pi-template's tools/commands
  * are available. After removal and reload, they are gone.
@@ -141,7 +132,7 @@ describe("SDK e2e — reload cycle (symlink activation and removal)", () => {
 		const extensionsDir = path.join(reloadTempDir, "extensions");
 		fs.mkdirSync(extensionsDir);
 
-		// Simulate /monorepo-install: create symlink → pi-template package directory
+		// Simulate activation: create symlink → pi-template package directory
 		const symlinkPath = path.join(extensionsDir, "pi-template");
 		fs.symlinkSync(piTemplateDir, symlinkPath);
 
@@ -229,7 +220,7 @@ describe("SDK e2e — reload cycle (symlink activation and removal)", () => {
 		}
 		expect(foundInitially).toBe(true);
 
-		// Simulate /monorepo-remove: delete the symlink
+		// Simulate removal: delete the symlink
 		fs.unlinkSync(symlinkPath);
 		expect(fs.existsSync(symlinkPath)).toBe(false);
 
