@@ -98,25 +98,25 @@ describe("parseGitHubUrl", () => {
 describe("buildReleaseTag", () => {
 	it("builds tag from packages/ path", () => {
 		expect(buildReleaseTag("packages/pi-template", "0.2.0")).toBe(
-			"pi-template--v0.2.0",
+			"pi-template-v0.2.0",
 		);
 	});
 
 	it("builds tag for deeply nested package", () => {
 		expect(buildReleaseTag("packages/pi-monorepo-registry", "0.1.1")).toBe(
-			"pi-monorepo-registry--v0.1.1",
+			"pi-monorepo-registry-v0.1.1",
 		);
 	});
 
 	it("handles packages with multiple slashes", () => {
 		expect(buildReleaseTag("packages/@scope/my-pkg", "1.0.0")).toBe(
-			"@scope--my-pkg--v1.0.0",
+			"@scope--my-pkg-v1.0.0",
 		);
 	});
 
 	it("handles version with pre-release tag", () => {
 		expect(buildReleaseTag("packages/pi-template", "0.2.0-beta.1")).toBe(
-			"pi-template--v0.2.0-beta.1",
+			"pi-template-v0.2.0-beta.1",
 		);
 	});
 });
@@ -125,14 +125,14 @@ describe("buildReleaseTag", () => {
 
 describe("buildTarballUrl", () => {
 	it("builds correct URL", () => {
-		const url = buildTarballUrl("Zaephor", "pi-extensions", "pi-template--v0.2.0", "pi-template", "0.2.0");
+		const url = buildTarballUrl("Zaephor", "pi-extensions", "pi-template-v0.2.0", "pi-template", "0.2.0");
 		expect(url).toBe(
-			"https://github.com/Zaephor/pi-extensions/releases/download/pi-template--v0.2.0/pi-template-0.2.0.tgz",
+			"https://github.com/Zaephor/pi-extensions/releases/download/pi-template-v0.2.0/pi-template-0.2.0.tgz",
 		);
 	});
 
 	it("handles scoped package names", () => {
-		const url = buildTarballUrl("owner", "repo", "my-pkg--v1.0.0", "@scope/my-pkg", "1.0.0");
+		const url = buildTarballUrl("owner", "repo", "my-pkg-v1.0.0", "@scope/my-pkg", "1.0.0");
 		expect(url).toContain("@scope/my-pkg-1.0.0.tgz");
 	});
 });
@@ -143,7 +143,7 @@ describe("resolveTarballUrl", () => {
 	it("resolves from source with HTTPS URL", () => {
 		const url = resolveTarballUrl(TEST_SOURCE, "pi-template", "0.2.0", "packages/pi-template");
 		expect(url).toBe(
-			"https://github.com/Zaephor/pi-extensions/releases/download/pi-template--v0.2.0/pi-template-0.2.0.tgz",
+			"https://github.com/Zaephor/pi-extensions/releases/download/pi-template-v0.2.0/pi-template-0.2.0.tgz",
 		);
 	});
 
@@ -154,7 +154,7 @@ describe("resolveTarballUrl", () => {
 		};
 		const url = resolveTarballUrl(sshSource, "pi-template", "0.2.0", "packages/pi-template");
 		expect(url).toBe(
-			"https://github.com/Zaephor/pi-extensions/releases/download/pi-template--v0.2.0/pi-template-0.2.0.tgz",
+			"https://github.com/Zaephor/pi-extensions/releases/download/pi-template-v0.2.0/pi-template-0.2.0.tgz",
 		);
 	});
 

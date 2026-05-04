@@ -103,6 +103,18 @@ jobs:
           manifest-file: .release-please-manifest.json
           token: ${{ secrets.GITHUB_TOKEN }}
 
+  # ---------------------------------------------------------------------------
+  # Upload per-package tarballs to GitHub Releases
+  #
+  # Tag convention (must match release-please v4 and tarball.ts buildReleaseTag):
+  #   Simple:   packages/pi-template          → pi-template-v0.2.0
+  #   Nested:   packages/@scope/my-pkg        → @scope--my-pkg-v1.0.0
+  #
+  #   Rule: strip "packages/", replace remaining "/" with "--", then "-v" + version.
+  #   release-please v4 creates tags in this format for manifest-mode monorepos.
+  #
+  # Tarball naming: {pkg-name}-{version}.tgz  (e.g. pi-template-0.2.0.tgz)
+  # ---------------------------------------------------------------------------
   upload-artifacts:
     needs: release-please
     if: ${{ needs.release-please.outputs.releases_created == 'true' }}
@@ -112,31 +124,62 @@ jobs:
     strategy:
       matrix:
         path: ${{ fromJson(needs.release-please.outputs.paths_released) }}
+      # If one package fails, still upload the others
+      fail-fast: false
     steps:
       - uses: actions/checkout@v4
 
+      # Diagnostic: show which package is being processed
+      - name: Show matrix context
+        run: |
+          echo "Processing path: ${{ matrix.path }}"
+          echo "Package name: $(jq -r '.name' '${{ matrix.path }}/package.json')"
+          echo "Package version: $(jq -r '.version' '${{ matrix.path }}/package.json')"
+
+      # Create tarball with exclusions — no node_modules, no .git, no hidden files
       - name: Pack tarball
         run: |
           pkg_name=$(jq -r '.name' "${{ matrix.path }}/package.json")
           pkg_version=$(jq -r '.version' "${{ matrix.path }}/package.json")
           tarball="${pkg_name}-${pkg_version}.tgz"
-          tar -czf "$tarball" -C "$(dirname '${{ matrix.path }}')" "$(basename '${{ matrix.path }}')"
+          echo "Creating tarball: ${tarball} from ${{ matrix.path }}"
+          tar -czf "$tarball" \
+            --exclude='node_modules' \
+            --exclude='.git' \
+            --exclude='.*' \
+            -C "$(dirname '${{ matrix.path }}')" "$(basename '${{ matrix.path }}')"
           echo "tarball=$tarball" >> "$GITHUB_ENV"
+          # Validate tarball contents
+          echo "--- Tarball contents ---"
+          tar -tzf "$tarball" | head -30
+          echo "--- Tarball size ---"
+          ls -lh "$tarball"
 
+      # Build the tag body: strip "packages/" prefix, replace "/" with "--"
+      # Then search for release-please tag: {tag-body}-v{version}
       - name: Get release tag
         id: tag
         run: |
+          # Tag body: strip packages/ prefix, replace remaining slashes with --
           tag=$(echo "${{ matrix.path }}" | sed 's|packages/||; s|/|--|g')
+          echo "Resolved tag body: ${tag}"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
+      # Upload with robust tag search and diagnostic error output
       - name: Upload tarball to GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           pkg_version=$(jq -r '.version' "${{ matrix.path }}/package.json")
+          echo "Searching for release tag matching: ${{ steps.tag.outputs.tag }}-v${pkg_version}"
           release_tag=$(gh release list --limit 20 --json tagName --jq ".[].tagName" | grep -E "${{ steps.tag.outputs.tag }}-v${pkg_version}$|v${pkg_version}$" | head -1)
           if [ -z "$release_tag" ]; then
             echo "::error::Could not find release tag for ${{ matrix.path }} v${pkg_version}"
+            echo "Searched pattern: ${{ steps.tag.outputs.tag }}-v${pkg_version}"
+            echo "Available tags:"
+            gh release list --limit 20 --json tagName --jq ".[].tagName" | sed 's/^/  /'
             exit 1
           fi
+          echo "Resolved release tag: ${release_tag}"
           gh release upload "$release_tag" "$tarball" --clobber
+          echo "Upload complete: ${tarball} → ${release_tag}"

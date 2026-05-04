@@ -5,9 +5,10 @@
  * URL convention:
  *   https://github.com/{owner}/{repo}/releases/download/{tag}/{pkg-name}-{version}.tgz
  *
- * Tag format from release-please for nested packages:
- *   packages--{name-with-dashes}--v{version}
- *   e.g. packages--pi-template--v0.2.0
+ * Tag format from release-please for monorepo packages:
+ *   {name-with-dashes}-v{version}
+ *   Nested paths use '--' for path separators, then '-v' before the version:
+ *   e.g. pi-template-v0.2.0, @scope--my-pkg-v1.0.0
  *
  * No external dependencies — uses Node built-ins only.
  */
@@ -53,16 +54,20 @@ export function parseGitHubUrl(url: string): { owner: string; repo: string } | n
 }
 
 /**
- * Build the release-please tag for a nested package path.
+ * Build the release-please tag for a monorepo package path.
  *
- * "packages/pi-template" → "packages--pi-template--v0.2.0"
+ * "packages/pi-template" → "pi-template-v0.2.0"
+ * "packages/@scope/my-pkg" → "@scope--my-pkg-v1.0.0"
+ *
+ * Release-please v4 produces tags with '-v' before the version.
+ * Internal path slashes become '--', but the version separator is always '-v'.
  *
  * @param packagePath - The monorepo-relative package path (e.g. "packages/pi-template").
  * @param version - The semver version string (e.g. "0.2.0").
  */
 export function buildReleaseTag(packagePath: string, version: string): string {
 	const tagBody = packagePath.replace(/^packages\//, "").replace(/\//g, "--");
-	return `${tagBody}--v${version}`;
+	return `${tagBody}-v${version}`;
 }
 
 /**
