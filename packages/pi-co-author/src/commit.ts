@@ -33,8 +33,8 @@ export interface TrailerOptions {
 export function isGitCommit(cmd: string): boolean {
 	const trimmed = cmd.trim();
 
-	// Must start with "git commit"
-	if (!/^git\s+commit\b/.test(trimmed)) return false;
+	// Must contain "git commit" — may be preceded by "cd ... &&" or similar shell prefix
+	if (!/(?:^|&&\s*|;\s*|\|\|\s*)git\s+commit\b/.test(trimmed)) return false;
 
 	// Reject --amend
 	if (/--amend(?:\s|$)/.test(trimmed)) return false;

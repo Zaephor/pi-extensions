@@ -94,6 +94,48 @@ describe("isGitCommit", () => {
 		expect(isGitCommit("")).toBe(false);
 	});
 
+	// --- cd/chain prefix cases (pi prepends "cd /workspace &&" to bash commands) ---
+
+	it("matches cd prefix: cd /workspace && git commit -m 'msg'", () => {
+		expect(isGitCommit('cd /workspace/950e277ec2d0 && git commit -m "test diag"')).toBe(true);
+	});
+
+	it("matches cd prefix with chained add: cd ... && git add ... && git commit -m 'msg'", () => {
+		expect(isGitCommit('cd /workspace/foo && git add file.txt && git commit -m "test"')).toBe(true);
+	});
+
+	it("matches semicolon separator: cd /foo; git commit -m 'msg'", () => {
+		expect(isGitCommit('cd /foo; git commit -m "msg"')).toBe(true);
+	});
+
+	it("matches || separator: cd /foo || git commit -m 'msg'", () => {
+		expect(isGitCommit('cd /foo || git commit -m "msg"')).toBe(true);
+	});
+
+	it("matches cd prefix with combined flags: cd ... && git commit -am 'msg'", () => {
+		expect(isGitCommit('cd /workspace && git commit -am "stage all"')).toBe(true);
+	});
+
+	it("matches cd prefix with --message=: cd ... && git commit --message='msg'", () => {
+		expect(isGitCommit("cd /workspace && git commit --message='hello'")).toBe(true);
+	});
+
+	it("rejects cd prefix with --amend: cd ... && git commit --amend -m 'msg'", () => {
+		expect(isGitCommit('cd /workspace && git commit --amend -m "fix"')).toBe(false);
+	});
+
+	it("rejects cd prefix with -F: cd ... && git commit -F msg.txt", () => {
+		expect(isGitCommit("cd /workspace && git commit -F msg.txt")).toBe(false);
+	});
+
+	it("rejects cd prefix with no -m: cd ... && git commit", () => {
+		expect(isGitCommit("cd /workspace && git commit")).toBe(false);
+	});
+
+	it("rejects cd prefix with git status: cd ... && git status", () => {
+		expect(isGitCommit("cd /workspace && git status")).toBe(false);
+	});
+
 	it("rejects random command", () => {
 		expect(isGitCommit("npm run build")).toBe(false);
 	});
@@ -141,6 +183,14 @@ describe("appendTrailers", () => {
 			const opts: TrailerOptions = { ...defaultOpts, modelName: "GPT-4o" };
 			const result = appendTrailers('git commit -m "hello"', opts);
 			expect(result).toContain("Co-Authored-By: Pi <GPT-4o> <noreply@pi.dev>");
+		});
+
+		it("appends trailer to cd-prefixed command with && chain", () => {
+			const cmd = 'cd /workspace/950e277ec2d0 && git add file.txt && git commit -m "test diag"';
+			const result = appendTrailers(cmd, defaultOpts);
+			expect(result).toContain("Co-Authored-By: Pi <Claude 4 Sonnet> <noreply@pi.dev>");
+			expect(result).toContain("test diag");
+			expect(result).toContain("cd /workspace/950e277ec2d0 && git add file.txt &&");
 		});
 	});
 
