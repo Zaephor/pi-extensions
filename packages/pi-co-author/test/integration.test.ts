@@ -290,8 +290,7 @@ describe("cross-concern integration", () => {
 			toolCallId: "tc-cd-prefix",
 			toolName: "bash",
 			input: {
-				command:
-					'cd /workspace/950e277ec2d0 && git add test-diag.txt && git commit -m "test diag"',
+				command: 'cd /workspace/950e277ec2d0 && git add test-diag.txt && git commit -m "test diag"',
 			},
 		};
 		await handler(event, testContext() as any);
