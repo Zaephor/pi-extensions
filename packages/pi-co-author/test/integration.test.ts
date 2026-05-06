@@ -278,4 +278,82 @@ describe("cross-concern integration", () => {
 		expect(event.input.command).toContain("initial commit");
 		expect(event.input.command).toContain("Co-Authored-By:");
 	});
+
+	it("rewrites pi-style cd-prefixed git commit command", async () => {
+		const mod = await import("../src/index.js");
+		const { api, handlers } = createRecordingMock();
+		mod.default(api);
+
+		const [handler] = handlers.get("tool_call")!;
+		const event = {
+			type: "tool_call",
+			toolCallId: "tc-cd-prefix",
+			toolName: "bash",
+			input: {
+				command:
+					'cd /workspace/950e277ec2d0 && git add test-diag.txt && git commit -m "test diag"',
+			},
+		};
+		await handler(event, testContext() as any);
+
+		expect(event.input.command).toContain("test diag");
+		expect(event.input.command).toContain("Co-Authored-By:");
+		expect(event.input.command).toContain("cd /workspace/950e277ec2d0 && git add test-diag.txt &&");
+	});
+
+	it("rewrites cd-prefixed git commit with combined flags", async () => {
+		const mod = await import("../src/index.js");
+		const { api, handlers } = createRecordingMock();
+		mod.default(api);
+
+		const [handler] = handlers.get("tool_call")!;
+		const event = {
+			type: "tool_call",
+			toolCallId: "tc-cd-am",
+			toolName: "bash",
+			input: {
+				command: 'cd /workspace/foo && git commit -am "fix bug"',
+			},
+		};
+		await handler(event, testContext() as any);
+
+		expect(event.input.command).toContain("fix bug");
+		expect(event.input.command).toContain("Co-Authored-By:");
+	});
+
+	it("ignores cd-prefixed git commit --amend", async () => {
+		const mod = await import("../src/index.js");
+		const { api, handlers } = createRecordingMock();
+		mod.default(api);
+
+		const [handler] = handlers.get("tool_call")!;
+		const originalCommand = 'cd /workspace/foo && git commit --amend -m "fix typo"';
+		const event = {
+			type: "tool_call",
+			toolCallId: "tc-cd-amend",
+			toolName: "bash",
+			input: { command: originalCommand },
+		};
+		await handler(event, testContext() as any);
+
+		expect(event.input.command).toBe(originalCommand); // unchanged
+	});
+
+	it("ignores cd-prefixed non-commit git commands", async () => {
+		const mod = await import("../src/index.js");
+		const { api, handlers } = createRecordingMock();
+		mod.default(api);
+
+		const [handler] = handlers.get("tool_call")!;
+		const originalCommand = "cd /workspace/foo && git add . && git status";
+		const event = {
+			type: "tool_call",
+			toolCallId: "tc-cd-status",
+			toolName: "bash",
+			input: { command: originalCommand },
+		};
+		await handler(event, testContext() as any);
+
+		expect(event.input.command).toBe(originalCommand); // unchanged
+	});
 });
