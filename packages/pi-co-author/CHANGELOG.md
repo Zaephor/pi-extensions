@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/Zaephor/pi-extensions/compare/pi-co-author-v0.2.0...pi-co-author-v0.2.1) (2026-05-06)
+
+
+### Bug Fixes
+
+* match git commit commands when pi prepends cd prefix ([5e797a3](https://github.com/Zaephor/pi-extensions/commit/5e797a32c5f7ee0bf16e8570480594f379a66687))
+
 ## [0.2.0](https://github.com/Zaephor/pi-extensions/compare/pi-co-author-v0.1.0...pi-co-author-v0.2.0) (2026-05-04)
 
 
