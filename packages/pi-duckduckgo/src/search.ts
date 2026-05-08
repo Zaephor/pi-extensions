@@ -27,8 +27,7 @@ const USER_AGENT =
 
 const HTML_HEADERS: Record<string, string> = {
 	"User-Agent": USER_AGENT,
-	Accept:
-		"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+	Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 	"Accept-Language": "en-US,en;q=0.9",
 };
 
@@ -38,9 +37,7 @@ function stripHtml(html: string): string {
 }
 
 /** Map safesearch label to DDG numeric parameter value. */
-function mapSafesearch(
-	safesearch?: "strict" | "moderate" | "off",
-): string | undefined {
+function mapSafesearch(safesearch?: "strict" | "moderate" | "off"): string | undefined {
 	switch (safesearch) {
 		case "strict":
 			return "1";
@@ -54,19 +51,14 @@ function mapSafesearch(
 }
 
 /** Build a descriptive error when DDG returns a non-200 status. */
-function httpError(
-	status: number,
-	context: string,
-): Error & { statusCode: number } {
+function httpError(status: number, context: string): Error & { statusCode: number } {
 	const err = new Error(context) as Error & { statusCode: number };
 	err.statusCode = status;
 
 	if (status === 429) {
-		err.message =
-			"DDG rate limit reached (429). Try again later or use a different search provider.";
+		err.message = "DDG rate limit reached (429). Try again later or use a different search provider.";
 	} else if (status === 418) {
-		err.message =
-			"DDG bot detection triggered (418). Try a different search provider or reduce request frequency.";
+		err.message = "DDG bot detection triggered (418). Try a different search provider or reduce request frequency.";
 	} else {
 		err.message = `DDG request failed with status ${status}: ${context}`;
 	}
@@ -88,26 +80,19 @@ function httpError(
  * @param fetchFn  Optional fetch implementation (defaults to globalThis.fetch)
  * @returns The vqd token string
  */
-export async function acquireVqd(
-	query: string,
-	fetchFn: typeof fetch = globalThis.fetch,
-): Promise<string> {
+export async function acquireVqd(query: string, fetchFn: typeof fetch = globalThis.fetch): Promise<string> {
 	const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
 
 	const resp = await fetchFn(url, { headers: HTML_HEADERS });
 
 	if (!resp.ok) {
-		throw httpError(
-			resp.status,
-			`Failed to acquire search token for query: "${query.slice(0, 60)}"`,
-		);
+		throw httpError(resp.status, `Failed to acquire search token for query: "${query.slice(0, 60)}"`);
 	}
 
 	const body = await resp.text();
 
 	// DDG embeds vqd in several patterns — match the most common ones.
-	const match =
-		/vqd=([^&"']+)|vqd['"]\s*[:=]\s*['"]([^'"]+)['"]/.exec(body);
+	const match = /vqd=([^&"']+)|vqd['"]\s*[:=]\s*['"]([^'"]+)['"]/.exec(body);
 
 	if (!match) {
 		throw new Error(
@@ -139,10 +124,7 @@ export async function searchDdg(
 		return [];
 	}
 
-	const maxResults = Math.min(
-		Math.max(options?.maxResults ?? 5, 1),
-		20,
-	);
+	const maxResults = Math.min(Math.max(options?.maxResults ?? 5, 1), 20);
 
 	// Step 1: acquire vqd token
 	const vqd = await acquireVqd(query, fetchFn);
@@ -164,10 +146,7 @@ export async function searchDdg(
 	const resp = await fetchFn(url, { headers: HTML_HEADERS });
 
 	if (!resp.ok) {
-		throw httpError(
-			resp.status,
-			`Search request failed for query: "${query.slice(0, 60)}"`,
-		);
+		throw httpError(resp.status, `Search request failed for query: "${query.slice(0, 60)}"`);
 	}
 
 	// Step 3: parse response
@@ -193,28 +172,14 @@ export async function searchDdg(
 		if (out.length >= maxResults) break;
 
 		const rec = item as Record<string, unknown>;
-		const rawUrl =
-			typeof rec.u === "string"
-				? rec.u
-				: typeof rec.url === "string"
-					? rec.url
-					: "";
+		const rawUrl = typeof rec.u === "string" ? rec.u : typeof rec.url === "string" ? rec.url : "";
 
 		if (!rawUrl) continue;
 
-		const title =
-			typeof rec.t === "string"
-				? rec.t
-				: typeof rec.title === "string"
-					? (rec.title as string)
-					: "";
+		const title = typeof rec.t === "string" ? rec.t : typeof rec.title === "string" ? (rec.title as string) : "";
 
 		const abstract =
-			typeof rec.a === "string"
-				? rec.a
-				: typeof rec.abstract === "string"
-					? (rec.abstract as string)
-					: "";
+			typeof rec.a === "string" ? rec.a : typeof rec.abstract === "string" ? (rec.abstract as string) : "";
 
 		out.push({
 			title,

@@ -18,10 +18,5 @@ export function formatResults(results: DdgSearchResult[]): string {
 		return "No results found.";
 	}
 
-	return results
-		.map(
-			(r, i) =>
-				`${i + 1}. ${r.title}\n   ${r.url}\n   ${r.snippet}`,
-		)
-		.join("\n\n");
+	return results.map((r, i) => `${i + 1}. ${r.title}\n   ${r.url}\n   ${r.snippet}`).join("\n\n");
 }
