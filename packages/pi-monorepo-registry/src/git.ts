@@ -164,15 +164,20 @@ export function resolveSourceRoot(url: string): { rootPath: string; cloned: bool
 	const targetDir = join(cacheDir, urlToDirName(url));
 
 	if (existsSync(join(targetDir, ".git"))) {
-		// Pull latest
+		// Fetch and fast-forward — unshallow first so ff-only works on shallow clones
 		try {
-			execSync("git pull --ff-only", {
+			execSync("git fetch --unshallow 2>/dev/null || git fetch", {
+				cwd: targetDir,
+				encoding: "utf-8",
+				stdio: ["pipe", "pipe", "pipe"],
+			});
+			execSync("git reset --hard origin/HEAD", {
 				cwd: targetDir,
 				encoding: "utf-8",
 				stdio: ["pipe", "pipe", "pipe"],
 			});
 		} catch {
-			// Pull failed — use existing clone, it may be offline
+			// Update failed — use existing clone, it may be offline
 		}
 	} else {
 		// Clone
