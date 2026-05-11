@@ -68,16 +68,16 @@ describe("SDK e2e — pi-monorepo-registry extension via createAgentSession", ()
 		expect(matching.length).toBeGreaterThanOrEqual(1);
 	});
 
-	it("registers the monorego-registry command", () => {
+	it("registers the monorepo-registry command", () => {
 		let cmd: any = null;
 		for (const ext of extensionsResult.extensions) {
-			if (ext.commands.has("monorego-registry")) {
-				cmd = ext.commands.get("monorego-registry");
+			if (ext.commands.has("monorepo-registry")) {
+				cmd = ext.commands.get("monorepo-registry");
 				break;
 			}
 		}
 		expect(cmd).not.toBeNull();
-		expect(cmd.name).toBe("monorego-registry");
+		expect(cmd.name).toBe("monorepo-registry");
 		expect(cmd.description).toBeTruthy();
 		expect(cmd.description.toLowerCase()).toContain("registry");
 		expect(typeof cmd.handler).toBe("function");

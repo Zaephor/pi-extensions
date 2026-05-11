@@ -6,8 +6,8 @@
  * are installed through it via the settings.json bridge (S02+).
  *
  * This test verifies:
- * 1. The registry loads natively via pi SDK and registers /monorego-registry
- * 2. The registry loads natively via gsd SDK and registers /monorego-registry
+ * 1. The registry loads natively via pi SDK and registers /monorepo-registry
+ * 2. The registry loads natively via gsd SDK and registers /monorepo-registry
  */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -59,13 +59,13 @@ describe("Scenario 1: Load registry via pi SDK", () => {
 		expect(result.extensionsResult.extensions.length).toBeGreaterThanOrEqual(1);
 	});
 
-	it("registers /monorego-registry command", () => {
-		const has = result.extensionsResult.extensions.some((ext: any) => ext.commands.has("monorego-registry"));
+	it("registers /monorepo-registry command", () => {
+		const has = result.extensionsResult.extensions.some((ext: any) => ext.commands.has("monorepo-registry"));
 		expect(has).toBe(true);
 	});
 
-	it("registers /monorego-package command", () => {
-		const has = result.extensionsResult.extensions.some((ext: any) => ext.commands.has("monorego-package"));
+	it("registers /monorepo-package command", () => {
+		const has = result.extensionsResult.extensions.some((ext: any) => ext.commands.has("monorepo-package"));
 		expect(has).toBe(true);
 	});
 });
@@ -109,13 +109,13 @@ describe.skipIf(!gsdAvailable)("Scenario 2: Load registry via gsd SDK", () => {
 		expect(result.extensionsResult.extensions.length).toBeGreaterThanOrEqual(1);
 	});
 
-	it("registers /monorego-registry command", () => {
-		const ext = result.extensionsResult.extensions.find((e: any) => e.commands.has("monorego-registry"));
+	it("registers /monorepo-registry command", () => {
+		const ext = result.extensionsResult.extensions.find((e: any) => e.commands.has("monorepo-registry"));
 		expect(ext).toBeDefined();
 	});
 
-	it("registers /monorego-package command", () => {
-		const ext = result.extensionsResult.extensions.find((e: any) => e.commands.has("monorego-package"));
+	it("registers /monorepo-package command", () => {
+		const ext = result.extensionsResult.extensions.find((e: any) => e.commands.has("monorepo-package"));
 		expect(ext).toBeDefined();
 	});
 });

@@ -276,13 +276,13 @@ describe("MonorepoRegistry", () => {
 // Extension factory — command registration wiring
 // ---------------------------------------------------------------------------
 describe("extension factory", () => {
-	it("registers two slash commands: /monorego-registry and /monorego-package", async () => {
+	it("registers two slash commands: /monorepo-registry and /monorepo-package", async () => {
 		const mod = await import("../src/index.js");
 		const { api, commands } = createMockAPI();
 		await mod.default(api);
 		const names = commands.map((c) => c.name);
-		expect(names).toContain("monorego-registry");
-		expect(names).toContain("monorego-package");
+		expect(names).toContain("monorepo-registry");
+		expect(names).toContain("monorepo-package");
 		expect(commands).toHaveLength(2);
 	});
 
@@ -293,7 +293,7 @@ describe("extension factory", () => {
 		expect(events.some((e) => e.event === "session_start")).toBe(true);
 	});
 
-	describe("/monorego-registry add", () => {
+	describe("/monorepo-registry add", () => {
 		it("shows error when no URL provided", async () => {
 			const mod = await import("../src/index.js");
 			const { api, commands } = createMockAPI();
@@ -301,14 +301,14 @@ describe("extension factory", () => {
 
 			const notified: string[] = [];
 			const ctx = createMockContext({ notify: (msg: string, level: string) => notified.push(`${level}:${msg}`) });
-			const regCmd = commands.find((c) => c.name === "monorego-registry")!;
+			const regCmd = commands.find((c) => c.name === "monorepo-registry")!;
 			await regCmd.handler("add", ctx as any);
 
 			expect(notified[0]).toContain("URL required");
 		});
 	});
 
-	describe("/monorego-registry remove", () => {
+	describe("/monorepo-registry remove", () => {
 		it("shows error when no URL provided", async () => {
 			const mod = await import("../src/index.js");
 			const { api, commands } = createMockAPI();
@@ -316,7 +316,7 @@ describe("extension factory", () => {
 
 			const notified: string[] = [];
 			const ctx = createMockContext({ notify: (msg: string, level: string) => notified.push(`${level}:${msg}`) });
-			const regCmd = commands.find((c) => c.name === "monorego-registry")!;
+			const regCmd = commands.find((c) => c.name === "monorepo-registry")!;
 			await regCmd.handler("remove", ctx as any);
 
 			expect(notified[0]).toContain("source required");
@@ -329,14 +329,14 @@ describe("extension factory", () => {
 
 			const notified: string[] = [];
 			const ctx = createMockContext({ notify: (msg: string, level: string) => notified.push(`${level}:${msg}`) });
-			const regCmd = commands.find((c) => c.name === "monorego-registry")!;
+			const regCmd = commands.find((c) => c.name === "monorepo-registry")!;
 			await regCmd.handler("remove https://nope.example.com", ctx as any);
 
 			expect(notified[0]).toContain('"https://nope.example.com" not found');
 		});
 	});
 
-	describe("/monorego-registry update", () => {
+	describe("/monorepo-registry update", () => {
 		it("shows info when no sources to update", async () => {
 			const mod = await import("../src/index.js");
 			const { api, commands } = createMockAPI();
@@ -344,14 +344,14 @@ describe("extension factory", () => {
 
 			const notified: string[] = [];
 			const ctx = createMockContext({ notify: (msg: string) => notified.push(msg) });
-			const regCmd = commands.find((c) => c.name === "monorego-registry")!;
+			const regCmd = commands.find((c) => c.name === "monorepo-registry")!;
 			await regCmd.handler("update", ctx as any);
 
 			expect(notified[0]).toContain("No sources to update");
 		});
 	});
 
-	describe("/monorego-registry list", () => {
+	describe("/monorepo-registry list", () => {
 		it("shows message when no sources registered", async () => {
 			const mod = await import("../src/index.js");
 			const { api, commands } = createMockAPI();
@@ -359,14 +359,14 @@ describe("extension factory", () => {
 
 			const notified: string[] = [];
 			const ctx = createMockContext({ notify: (msg: string) => notified.push(msg) });
-			const regCmd = commands.find((c) => c.name === "monorego-registry")!;
+			const regCmd = commands.find((c) => c.name === "monorepo-registry")!;
 			await regCmd.handler("list", ctx as any);
 
 			expect(notified[0]).toContain("No monorepo sources registered");
 		});
 	});
 
-	describe("/monorego-registry unknown subcommand", () => {
+	describe("/monorepo-registry unknown subcommand", () => {
 		it("shows error for unknown subcommand", async () => {
 			const mod = await import("../src/index.js");
 			const { api, commands } = createMockAPI();
@@ -374,7 +374,7 @@ describe("extension factory", () => {
 
 			const notified: string[] = [];
 			const ctx = createMockContext({ notify: (msg: string, level: string) => notified.push(`${level}:${msg}`) });
-			const regCmd = commands.find((c) => c.name === "monorego-registry")!;
+			const regCmd = commands.find((c) => c.name === "monorepo-registry")!;
 			await regCmd.handler("bogus", ctx as any);
 
 			expect(notified[0]).toContain("Unknown subcommand");

@@ -11,32 +11,32 @@ pi install git:github.com/Zaephor/pi-extensions
 /reload
 ```
 
-After installing, two commands become available: `/monorego-registry` and `/monorego-package`.
+After installing, two commands become available: `/monorepo-registry` and `/monorepo-package`.
 
 ## Commands
 
-### `/monorego-registry` — Manage monorepo sources
+### `/monorepo-registry` — Manage monorepo sources
 
 #### Add a source
 
 ```
-/monorego-registry add <url-or-path> [packages-root]
+/monorepo-registry add <url-or-path> [packages-root]
 ```
 
 Registers a monorepo source and scans it for pi-compatible packages. The optional `packages-root` argument specifies the subdirectory containing packages (defaults to `packages`).
 
 ```sh
 # From a git URL
-/monorego-registry add https://github.com/user/my-pi-extensions
+/monorepo-registry add https://github.com/user/my-pi-extensions
 
 # From a local path with custom packages root
-/monorego-registry add /path/to/my-monorepo plugins
+/monorepo-registry add /path/to/my-monorepo plugins
 ```
 
 #### Remove a source
 
 ```
-/monorego-registry remove <source>
+/monorepo-registry remove <source>
 ```
 
 Removes a registered source by URL or short name.
@@ -44,7 +44,7 @@ Removes a registered source by URL or short name.
 #### List sources
 
 ```
-/monorego-registry list
+/monorepo-registry list
 ```
 
 Shows all registered sources, their discovered packages (with name, version, description), and highlights duplicate package names across sources.
@@ -52,44 +52,44 @@ Shows all registered sources, their discovered packages (with name, version, des
 #### Update sources
 
 ```
-/monorego-registry update              # Re-scan all sources
-/monorego-registry update my-monorepo  # Re-san a specific source
+/monorepo-registry update              # Re-scan all sources
+/monorepo-registry update my-monorepo  # Re-san a specific source
 ```
 
 Re-discovers packages in the source, picking up any additions or changes.
 
-### `/monorego-package` — Install, remove, update, and list packages
+### `/monorepo-package` — Install, remove, update, and list packages
 
 #### Install (dev mode — symlink to local checkout)
 
 ```
-/monorego-package install <name> --dev <path>
+/monorepo-package install <name> --dev <path>
 ```
 
 Creates a symlink from the extensions directory to a local package checkout. Ideal for active development where changes should be reflected immediately.
 
 ```sh
-/monorego-package install my-extension --dev /projects/my-extension
+/monorepo-package install my-extension --dev /projects/my-extension
 ```
 
 #### Install (git mode — clone + symlink)
 
 ```
-/monorego-package install <name> --git
+/monorepo-package install <name> --git
 ```
 
 Clones (or reuses) the source repository and creates a symlink to the package directory within it.
 
 ```sh
-/monorego-package install my-extension --git
+/monorepo-package install my-extension --git
 ```
 
 #### Install (tarball mode — download, default)
 
 ```
-/monorego-package install <name>                    # Latest from discovered version
-/monorego-package install <name> --version 1.2.0    # Specific version
-/monorego-package install <name> --source <url>     # Explicit source
+/monorepo-package install <name>                    # Latest from discovered version
+/monorepo-package install <name> --version 1.2.0    # Specific version
+/monorepo-package install <name> --source <url>     # Explicit source
 ```
 
 Downloads a release tarball from GitHub and extracts it into the extensions directory. This is the default mode when no flags are specified.
@@ -97,7 +97,7 @@ Downloads a release tarball from GitHub and extracts it into the extensions dire
 #### Remove
 
 ```
-/monorego-package remove <name>
+/monorepo-package remove <name>
 ```
 
 Removes the installed package — deletes symlinks (dev/git) or extracted directories (tarball) and unregisters from settings.
@@ -105,7 +105,7 @@ Removes the installed package — deletes symlinks (dev/git) or extracted direct
 #### Update
 
 ```
-/monorego-package update <name> [--version <semver>]
+/monorepo-package update <name> [--version <semver>]
 ```
 
 Downloads a new version of a tarball-installed package and atomically swaps it in place. Only supported for tarball-activated packages — dev and git packages should be updated at their source.
@@ -113,7 +113,7 @@ Downloads a new version of a tarball-installed package and atomically swaps it i
 #### List
 
 ```
-/monorego-package list
+/monorepo-package list
 ```
 
 Shows all installed packages with their activation mode, source, install date, and target path.

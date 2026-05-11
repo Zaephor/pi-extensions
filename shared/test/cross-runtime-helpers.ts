@@ -232,7 +232,7 @@ function createRegistryMock() {
 /**
  * Install a package via the registry into an agent dir.
  * Loads the registry extension with a mock API, registers the monorepo source
- * via /monorego-registry add, then installs package via /monorego-package install --dev.
+ * via /monorepo-registry add, then installs package via /monorepo-package install --dev.
  *
  * @param registrySrc - Absolute path to pi-monorepo-registry/src/index.ts
  * @param repoRoot - Absolute path to the monorepo root (containing packages/)
@@ -249,13 +249,13 @@ export async function installViaRegistry(
 		const mod = await import(/* @vite-ignore */ registrySrc);
 		await mod.default(mock.api);
 
-		// Register this monorepo as a source via /monorego-registry add
-		const regCmd = mock.commands.get("monorego-registry")!;
+		// Register this monorepo as a source via /monorepo-registry add
+		const regCmd = mock.commands.get("monorepo-registry")!;
 		await regCmd.handler(`add ${repoRoot} packages`, mock.ctx);
 
-		// Install the target package via /monorego-package install --dev (symlink to local)
+		// Install the target package via /monorepo-package install --dev (symlink to local)
 		const pkgDir = path.join(repoRoot, "packages", packageNameToDirName(packageName));
-		const pkgCmd = mock.commands.get("monorego-package")!;
+		const pkgCmd = mock.commands.get("monorepo-package")!;
 		await pkgCmd.handler(`install ${packageName} --dev ${pkgDir}`, mock.ctx);
 	});
 }

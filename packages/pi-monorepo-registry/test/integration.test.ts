@@ -3,8 +3,8 @@
  * using a fixture monorepo on the real filesystem.
  *
  * Tests both commands:
- *   /monorego-registry — add/remove/list/update sources
- *   /monorego-package  — install/remove/update/list packages
+ *   /monorepo-registry — add/remove/list/update sources
+ *   /monorepo-package  — install/remove/update/list packages
  */
 
 import { existsSync, unlinkSync } from "node:fs";
@@ -110,13 +110,13 @@ describe("pi-monorepo-registry integration", () => {
 		resetRegistryBaseDir();
 	});
 
-	it("factory initializes and registers /monorego-registry and /monorego-package commands", async () => {
+	it("factory initializes and registers /monorepo-registry and /monorepo-package commands", async () => {
 		const mod = await import("../src/index.js");
 		const { api, commands } = createRecordingMock();
 		await mod.default(api);
 
-		expect(commands.has("monorego-registry")).toBe(true);
-		expect(commands.has("monorego-package")).toBe(true);
+		expect(commands.has("monorepo-registry")).toBe(true);
+		expect(commands.has("monorepo-package")).toBe(true);
 		expect(commands.size).toBe(2);
 	});
 
@@ -152,7 +152,7 @@ describe("pi-monorepo-registry integration", () => {
 			// Add source
 			const notified: any[] = [];
 			const ctx = testContext((...args: any[]) => notified.push(args));
-			const regCmd = commands.get("monorego-registry")!;
+			const regCmd = commands.get("monorepo-registry")!;
 			await regCmd.handler(`add ${fixture.rootDir} packages`, ctx as any);
 
 			expect(notified.length).toBeGreaterThan(0);
@@ -187,7 +187,7 @@ describe("pi-monorepo-registry integration", () => {
 
 			const notified: any[] = [];
 			const ctx = testContext((...args: any[]) => notified.push(args));
-			const regCmd = commands.get("monorego-registry")!;
+			const regCmd = commands.get("monorepo-registry")!;
 
 			// Add then remove
 			await regCmd.handler(`add ${fixture.rootDir} packages`, ctx as any);
@@ -214,7 +214,7 @@ describe("pi-monorepo-registry integration", () => {
 
 			const notified: any[] = [];
 			const ctx = testContext((...args: any[]) => notified.push(args));
-			const regCmd = commands.get("monorego-registry")!;
+			const regCmd = commands.get("monorepo-registry")!;
 
 			// Add with empty initial state (packages already discovered)
 			await regCmd.handler(`add ${fixture.rootDir} packages`, ctx as any);
@@ -236,28 +236,28 @@ describe("pi-monorepo-registry integration", () => {
 
 			const notified: any[] = [];
 			const ctx = testContext((...args: any[]) => notified.push(args));
-			const regCmd = commands.get("monorego-registry")!;
+			const regCmd = commands.get("monorepo-registry")!;
 			await regCmd.handler("add /absolutely/nonexistent/path/12345 packages", ctx as any);
 
 			expect(notified[0][0]).toContain("Registry source added");
 			// discovery returns [] for non-existent path, so package count is 0
 		});
 
-		it("no-args /monorego-registry shows usage", async () => {
+		it("no-args /monorepo-registry shows usage", async () => {
 			const mod = await import("../src/index.js");
 			const { api, commands } = createRecordingMock();
 			await mod.default(api);
 
 			const notified: any[] = [];
 			const ctx = testContext((...args: any[]) => notified.push(args));
-			const regCmd = commands.get("monorego-registry")!;
+			const regCmd = commands.get("monorepo-registry")!;
 			await regCmd.handler("", ctx as any);
 
 			expect(notified[0][0]).toContain("Usage:");
 		});
 	});
 
-	describe("/monorego-package command", () => {
+	describe("/monorepo-package command", () => {
 		it("install --dev with fixture monorepo installs and registers symlink", async () => {
 			const fixture = await createFixtureMonorepo("pkg-dev", [
 				{ name: "test-plugin", version: "1.0.0", piExtensions: ["./src/index.ts"] },
@@ -270,7 +270,7 @@ describe("pi-monorepo-registry integration", () => {
 
 			const notified: any[] = [];
 			const ctx = testContext((...args: any[]) => notified.push(args));
-			const pkgCmd = commands.get("monorego-package")!;
+			const pkgCmd = commands.get("monorepo-package")!;
 
 			const localPath = join(fixture.packagesDir, "test-plugin");
 			await pkgCmd.handler(`install test-plugin --dev ${localPath}`, ctx as any);
@@ -307,7 +307,7 @@ describe("pi-monorepo-registry integration", () => {
 
 			const notified: any[] = [];
 			const ctx = testContext((...args: any[]) => notified.push(args));
-			const pkgCmd = commands.get("monorego-package")!;
+			const pkgCmd = commands.get("monorepo-package")!;
 
 			// Install first
 			const localPath = join(fixture.packagesDir, "removable-pkg");
@@ -347,7 +347,7 @@ describe("pi-monorepo-registry integration", () => {
 
 			const notified: any[] = [];
 			const ctx = testContext((...args: any[]) => notified.push(args));
-			const pkgCmd = commands.get("monorego-package")!;
+			const pkgCmd = commands.get("monorepo-package")!;
 
 			// Install both
 			await pkgCmd.handler(`install pkg-alpha --dev ${join(fixtureA.packagesDir, "pkg-alpha")}`, ctx as any);
@@ -374,7 +374,7 @@ describe("pi-monorepo-registry integration", () => {
 
 			const notified: any[] = [];
 			const ctx = testContext((...args: any[]) => notified.push(args));
-			const pkgCmd = commands.get("monorego-package")!;
+			const pkgCmd = commands.get("monorepo-package")!;
 
 			const localPath = join(fixture.packagesDir, "dup-pkg");
 			await pkgCmd.handler(`install dup-pkg --dev ${localPath}`, ctx as any);
@@ -394,7 +394,7 @@ describe("pi-monorepo-registry integration", () => {
 
 			const notified: any[] = [];
 			const ctx = testContext((...args: any[]) => notified.push(args));
-			const pkgCmd = commands.get("monorego-package")!;
+			const pkgCmd = commands.get("monorepo-package")!;
 
 			await pkgCmd.handler("remove nonexistent-pkg", ctx as any);
 			expect(notified[0][1]).toBe("error");
@@ -408,21 +408,21 @@ describe("pi-monorepo-registry integration", () => {
 
 			const notified: any[] = [];
 			const ctx = testContext((...args: any[]) => notified.push(args));
-			const pkgCmd = commands.get("monorego-package")!;
+			const pkgCmd = commands.get("monorepo-package")!;
 
 			await pkgCmd.handler("install", ctx as any);
 			expect(notified[0][1]).toBe("error");
 			expect(notified[0][0]).toContain("package name required");
 		});
 
-		it("no-args /monorego-package shows usage", async () => {
+		it("no-args /monorepo-package shows usage", async () => {
 			const mod = await import("../src/index.js");
 			const { api, commands } = createRecordingMock();
 			await mod.default(api);
 
 			const notified: any[] = [];
 			const ctx = testContext((...args: any[]) => notified.push(args));
-			const pkgCmd = commands.get("monorego-package")!;
+			const pkgCmd = commands.get("monorepo-package")!;
 			await pkgCmd.handler("", ctx as any);
 
 			expect(notified[0][0]).toContain("Usage:");
@@ -435,7 +435,7 @@ describe("pi-monorepo-registry integration", () => {
 
 			const notified: any[] = [];
 			const ctx = testContext((...args: any[]) => notified.push(args));
-			const pkgCmd = commands.get("monorego-package")!;
+			const pkgCmd = commands.get("monorepo-package")!;
 			await pkgCmd.handler("bogus", ctx as any);
 
 			expect(notified[0][1]).toBe("error");
@@ -449,7 +449,7 @@ describe("pi-monorepo-registry integration", () => {
 
 			const notified: any[] = [];
 			const ctx = testContext((...args: any[]) => notified.push(args));
-			const pkgCmd = commands.get("monorego-package")!;
+			const pkgCmd = commands.get("monorepo-package")!;
 
 			await pkgCmd.handler("install broken-pkg --dev /absolutely/nonexistent/path", ctx as any);
 			expect(notified[0][1]).toBe("error");
@@ -463,7 +463,7 @@ describe("pi-monorepo-registry integration", () => {
 
 			const notified: any[] = [];
 			const ctx = testContext((...args: any[]) => notified.push(args));
-			const pkgCmd = commands.get("monorego-package")!;
+			const pkgCmd = commands.get("monorepo-package")!;
 
 			// No source registered, tarball mode should fail
 			await pkgCmd.handler("install some-pkg", ctx as any);
@@ -478,7 +478,7 @@ describe("pi-monorepo-registry integration", () => {
 
 			const notified: any[] = [];
 			const ctx = testContext((...args: any[]) => notified.push(args));
-			const pkgCmd = commands.get("monorego-package")!;
+			const pkgCmd = commands.get("monorepo-package")!;
 
 			await pkgCmd.handler("update some-pkg --version 2.0.0", ctx as any);
 			expect(notified[0][1]).toBe("error");
@@ -497,7 +497,7 @@ describe("pi-monorepo-registry integration", () => {
 
 			const notified: any[] = [];
 			const ctx = testContext((...args: any[]) => notified.push(args));
-			const pkgCmd = commands.get("monorego-package")!;
+			const pkgCmd = commands.get("monorepo-package")!;
 
 			// Install as dev mode
 			const localPath = join(fixture.packagesDir, "dev-pkg");

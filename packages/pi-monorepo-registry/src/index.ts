@@ -2,8 +2,8 @@
  * pi-monorepo-registry — Discover and manage packages across monorepo sources.
  *
  * Registers two commands:
- *   /monorego-registry  — manage registry sources (add/remove/list/update)
- *   /monorego-package   — install/remove/update/list packages
+ *   /monorepo-registry  — manage registry sources (add/remove/list/update)
+ *   /monorepo-package   — install/remove/update/list packages
  *
  * State is persisted to disk via persistence.ts.
  */
@@ -42,8 +42,8 @@ export default async function (pi: ExtensionAPI) {
 	const stateFilePath = getStateFilePath();
 	const registry = new MonorepoRegistry(savedState);
 
-	// --- /monorego-registry: manage registry sources (add/remove/list/update) ---
-	pi.registerCommand("monorego-registry", {
+	// --- /monorepo-registry: manage registry sources (add/remove/list/update) ---
+	pi.registerCommand("monorepo-registry", {
 		description: "Manage monorepo registry sources (add/remove/list/update [source])",
 		handler: async (args, ctx) => {
 			const parts = args.trim().split(/\s+/);
@@ -51,7 +51,7 @@ export default async function (pi: ExtensionAPI) {
 
 			if (!subcommand) {
 				ctx.ui.notify(
-					"Usage: /monorego-registry add <url> [packages-root] | remove <source> | list | update [source]",
+					"Usage: /monorepo-registry add <url> [packages-root] | remove <source> | list | update [source]",
 					"error",
 				);
 				return;
@@ -60,7 +60,7 @@ export default async function (pi: ExtensionAPI) {
 			if (subcommand === "add") {
 				const url = parts[1];
 				if (!url) {
-					ctx.ui.notify("Error: URL required. Usage: /monorego-registry add <url> [packages-root]", "error");
+					ctx.ui.notify("Error: URL required. Usage: /monorepo-registry add <url> [packages-root]", "error");
 					return;
 				}
 				const packagesRoot = parts[2] ?? "packages";
@@ -85,7 +85,7 @@ export default async function (pi: ExtensionAPI) {
 			} else if (subcommand === "remove") {
 				const identifier = parts[1];
 				if (!identifier) {
-					ctx.ui.notify("Error: source required. Usage: /monorego-registry remove <url-or-shortname>", "error");
+					ctx.ui.notify("Error: source required. Usage: /monorepo-registry remove <url-or-shortname>", "error");
 					return;
 				}
 
@@ -97,7 +97,7 @@ export default async function (pi: ExtensionAPI) {
 
 				if (!source) {
 					ctx.ui.notify(
-						`Source "${identifier}" not found. Use /monorego-registry list to see registered sources.`,
+						`Source "${identifier}" not found. Use /monorepo-registry list to see registered sources.`,
 						"error",
 					);
 					return;
@@ -142,7 +142,7 @@ export default async function (pi: ExtensionAPI) {
 
 				if (sources.length === 0) {
 					ctx.ui.notify(
-						`No monorepo sources registered.\nState: ${stateFilePath}\n\nUse /monorego-registry add <url> to add a source.`,
+						`No monorepo sources registered.\nState: ${stateFilePath}\n\nUse /monorepo-registry add <url> to add a source.`,
 						"info",
 					);
 					return;
@@ -185,10 +185,10 @@ export default async function (pi: ExtensionAPI) {
 		},
 	});
 
-	// --- /monorego-package: install/remove/update/list packages ---
+	// --- /monorepo-package: install/remove/update/list packages ---
 	const pkgManager = new PackageManager(savedState);
 
-	pi.registerCommand("monorego-package", {
+	pi.registerCommand("monorepo-package", {
 		description: "Install, remove, update, or list packages from monorepo sources",
 		handler: async (args, ctx) => {
 			const parts = args.trim().split(/\s+/);
@@ -196,10 +196,10 @@ export default async function (pi: ExtensionAPI) {
 
 			if (!subcommand) {
 				ctx.ui.notify(
-					"Usage: /monorego-package install <name> [--dev <path>] [--git] [--source <url>] [--version <semver>]\n" +
-						"       /monorego-package remove <name>\n" +
-						"       /monorego-package update <name> [--version <semver>]\n" +
-						"       /monorego-package list",
+					"Usage: /monorepo-package install <name> [--dev <path>] [--git] [--source <url>] [--version <semver>]\n" +
+						"       /monorepo-package remove <name>\n" +
+						"       /monorepo-package update <name> [--version <semver>]\n" +
+						"       /monorepo-package list",
 					"error",
 				);
 				return;
@@ -213,7 +213,7 @@ export default async function (pi: ExtensionAPI) {
 				const pkgName = parts[1];
 				if (!pkgName) {
 					ctx.ui.notify(
-						"Error: package name required. Usage: /monorego-package install <name> [--dev <path>] [--git] [--source <url>] [--version <semver>]",
+						"Error: package name required. Usage: /monorepo-package install <name> [--dev <path>] [--git] [--source <url>] [--version <semver>]",
 						"error",
 					);
 					return;
@@ -257,7 +257,7 @@ export default async function (pi: ExtensionAPI) {
 						const source = resolveSourceForPackage(registry, pkgName, sourceId);
 						if (!source) {
 							ctx.ui.notify(
-								`No source found for package "${pkgName}". Register a source first with /monorego-registry add, or specify --source.`,
+								`No source found for package "${pkgName}". Register a source first with /monorepo-registry add, or specify --source.`,
 								"error",
 							);
 							return;
@@ -282,7 +282,7 @@ export default async function (pi: ExtensionAPI) {
 						const source = resolveSourceForPackage(registry, pkgName, sourceId);
 						if (!source) {
 							ctx.ui.notify(
-								`No source found for package "${pkgName}". Register a source first with /monorego-registry add, or specify --source.`,
+								`No source found for package "${pkgName}". Register a source first with /monorepo-registry add, or specify --source.`,
 								"error",
 							);
 							return;
@@ -317,7 +317,7 @@ export default async function (pi: ExtensionAPI) {
 			} else if (subcommand === "remove") {
 				const pkgName = parts[1];
 				if (!pkgName) {
-					ctx.ui.notify("Error: package name required. Usage: /monorego-package remove <name>", "error");
+					ctx.ui.notify("Error: package name required. Usage: /monorepo-package remove <name>", "error");
 					return;
 				}
 
@@ -338,7 +338,7 @@ export default async function (pi: ExtensionAPI) {
 				const pkgName = parts[1];
 				if (!pkgName) {
 					ctx.ui.notify(
-						"Error: package name required. Usage: /monorego-package update <name> [--version <semver>]",
+						"Error: package name required. Usage: /monorepo-package update <name> [--version <semver>]",
 						"error",
 					);
 					return;
@@ -405,7 +405,7 @@ export default async function (pi: ExtensionAPI) {
 
 				if (installed.length === 0) {
 					ctx.ui.notify(
-						`No packages installed.\nState: ${stateFilePath}\n\nUse /monorego-package install <name> to install a package.`,
+						`No packages installed.\nState: ${stateFilePath}\n\nUse /monorepo-package install <name> to install a package.`,
 						"info",
 					);
 					return;
