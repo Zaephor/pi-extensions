@@ -13,6 +13,10 @@
 		"packages/pi-co-author": {
 			"release-type": "node",
 			"changelog-type": "default"
+		},
+		"packages/pi-duckduckgo": {
+			"release-type": "node",
+			"changelog-type": "default"
 		}
 	},
 	"bootstrap-sha": "3d57a04ed8591b79f63f9a8c0aefd75b3a4add8a"
