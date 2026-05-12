@@ -68,8 +68,6 @@ function testContext() {
 	} as any;
 }
 
-
-
 describe("pi-duckduckgo integration — full extension loading", () => {
 	it("dynamically imports the module and gets a factory function", async () => {
 		const mod = await import("../src/index.js");
@@ -127,14 +125,12 @@ describe("pi-duckduckgo integration — full extension loading", () => {
 			const originalFetch = globalThis.fetch;
 			globalThis.fetch = (async (url: string, _opts?: any) => {
 				if (url.includes("html.duckduckgo.com")) {
-					return new Response('some html vqd=testtoken123&more', { status: 200 });
+					return new Response("some html vqd=testtoken123&more", { status: 200 });
 				}
 				if (url.includes("links.duckduckgo.com")) {
 					return new Response(
 						JSON.stringify({
-							Results: [
-								{ t: "Test Result", u: "https://example.com", a: "A test snippet" },
-							],
+							Results: [{ t: "Test Result", u: "https://example.com", a: "A test snippet" }],
 						}),
 						{ status: 200 },
 					);
