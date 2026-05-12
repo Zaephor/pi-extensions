@@ -108,14 +108,12 @@ describe("SDK e2e — pi-duckduckgo extension via createAgentSession", () => {
 		globalThis.fetch = (async (url: string, _opts?: any) => {
 			callCount++;
 			if (url.includes("html.duckduckgo.com")) {
-				return new Response('some html vqd=e2e-token-123&more', { status: 200 });
+				return new Response("some html vqd=e2e-token-123&more", { status: 200 });
 			}
 			if (url.includes("links.duckduckgo.com")) {
 				return new Response(
 					JSON.stringify({
-						Results: [
-							{ t: "E2E Result", u: "https://e2e.test", a: "E2E snippet" },
-						],
+						Results: [{ t: "E2E Result", u: "https://e2e.test", a: "E2E snippet" }],
 					}),
 					{ status: 200 },
 				);

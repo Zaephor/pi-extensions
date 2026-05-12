@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { createMockAPI, createMockContext } from "./helpers/mock-api";
 import { formatResults } from "../src/format.js";
 import { acquireVqd, searchDdg } from "../src/search.js";
+import { createMockAPI, createMockContext } from "./helpers/mock-api";
 
 // ---------------------------------------------------------------------------
 // Helpers — fetchFn mocks that avoid all live network calls
@@ -17,7 +17,9 @@ function mockFetch(status: number, body: string) {
 }
 
 /** Build a DDG d.js JSON response body with the given results. */
-function ddgJsonResponse(results: Array<{ t?: string; a?: string; u?: string; title?: string; abstract?: string; url?: string }>) {
+function ddgJsonResponse(
+	results: Array<{ t?: string; a?: string; u?: string; title?: string; abstract?: string; url?: string }>,
+) {
 	return JSON.stringify({ Results: results });
 }
 
@@ -171,9 +173,7 @@ describe("formatResults", () => {
 	});
 
 	it("formats a single result with number, title, url, snippet", () => {
-		const result = formatResults([
-			{ title: "Test Title", url: "https://example.com", snippet: "Test snippet" },
-		]);
+		const result = formatResults([{ title: "Test Title", url: "https://example.com", snippet: "Test snippet" }]);
 		expect(result).toContain("1. Test Title");
 		expect(result).toContain("https://example.com");
 		expect(result).toContain("Test snippet");
@@ -198,12 +198,12 @@ describe("formatResults", () => {
 
 describe("acquireVqd", () => {
 	it("extracts vqd token from HTML with vqd=TOKEN pattern", async () => {
-		const fetchFn = mockFetch(200, 'some html vqd=abc123def&more stuff');
+		const fetchFn = mockFetch(200, "some html vqd=abc123def&more stuff");
 		const vqd = await acquireVqd("test query", fetchFn as any);
 		expect(vqd).toBe("abc123def");
 	});
 
-	it("extracts vqd token from HTML with quoted pattern vqd\":\"TOKEN\"", async () => {
+	it('extracts vqd token from HTML with quoted pattern vqd":"TOKEN"', async () => {
 		const fetchFn = mockFetch(200, 'vqd":"xyz789abc"');
 		const vqd = await acquireVqd("test query", fetchFn as any);
 		expect(vqd).toBe("xyz789abc");
@@ -248,10 +248,7 @@ describe("searchDdg", () => {
 			return {
 				ok: true,
 				status: 200,
-				text: async () =>
-					ddgJsonResponse([
-						{ t: "Result 1", a: "Snippet 1", u: "https://example.com/1" },
-					]),
+				text: async () => ddgJsonResponse([{ t: "Result 1", a: "Snippet 1", u: "https://example.com/1" }]),
 			};
 		});
 
@@ -293,8 +290,7 @@ describe("searchDdg", () => {
 			return {
 				ok: true,
 				status: 200,
-				text: async () =>
-					ddgJsonResponse([{ t: "R", a: "S", u: "https://example.com" }]),
+				text: async () => ddgJsonResponse([{ t: "R", a: "S", u: "https://example.com" }]),
 			};
 		});
 
@@ -309,7 +305,7 @@ describe("searchDdg", () => {
 			if (callCount === 1) {
 				return { ok: true, status: 200, text: async () => "vqd=tok&" };
 			}
-			const url = (fetchFn.mock.calls[1][0] as string);
+			const url = fetchFn.mock.calls[1][0] as string;
 			// strict -> p=1
 			expect(url).toContain("p=1");
 			return { ok: true, status: 200, text: async () => ddgJsonResponse([]) };
@@ -325,7 +321,7 @@ describe("searchDdg", () => {
 			if (callCount === 1) {
 				return { ok: true, status: 200, text: async () => "vqd=tok&" };
 			}
-			const url = (fetchFn.mock.calls[1][0] as string);
+			const url = fetchFn.mock.calls[1][0] as string;
 			expect(url).toContain("kl=us-en");
 			return { ok: true, status: 200, text: async () => ddgJsonResponse([]) };
 		});
@@ -340,7 +336,7 @@ describe("searchDdg", () => {
 			if (callCount === 1) {
 				return { ok: true, status: 200, text: async () => "vqd=tok&" };
 			}
-			const url = (fetchFn.mock.calls[1][0] as string);
+			const url = fetchFn.mock.calls[1][0] as string;
 			expect(url).toContain("df=week");
 			return { ok: true, status: 200, text: async () => ddgJsonResponse([]) };
 		});
@@ -358,8 +354,7 @@ describe("searchDdg", () => {
 			return {
 				ok: true,
 				status: 200,
-				text: async () =>
-					ddgJsonResponse([{ t: "Title", a: "Abstract", u: "https://example.com" }]),
+				text: async () => ddgJsonResponse([{ t: "Title", a: "Abstract", u: "https://example.com" }]),
 			};
 		});
 
@@ -382,9 +377,7 @@ describe("searchDdg", () => {
 				ok: true,
 				status: 200,
 				text: async () =>
-					ddgJsonResponse([
-						{ title: "Fallback Title", abstract: "Fallback Abstract", url: "https://fallback.com" },
-					]),
+					ddgJsonResponse([{ title: "Fallback Title", abstract: "Fallback Abstract", url: "https://fallback.com" }]),
 			};
 		});
 
@@ -405,9 +398,7 @@ describe("searchDdg", () => {
 				ok: true,
 				status: 200,
 				text: async () =>
-					ddgJsonResponse([
-						{ t: "Title", a: "<b>Bold</b> and <i>italic</i>", u: "https://example.com" },
-					]),
+					ddgJsonResponse([{ t: "Title", a: "<b>Bold</b> and <i>italic</i>", u: "https://example.com" }]),
 			};
 		});
 
