@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Verify release-please config is in sync
-        run: npm run sync-release-config -- --check
+        run: scripts/sync-release-config.sh --check
 
       - uses: googleapis/release-please-action@v4
         id: release
