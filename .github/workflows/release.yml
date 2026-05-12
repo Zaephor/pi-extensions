@@ -51,8 +51,8 @@ jobs:
       - name: Seed manifest entries for new packages
         run: |
           # Ensure every discovered package has an entry in .release-please-manifest.json.
-          # If a package is missing, seed it with the version from its package.json.
-          # Release-please manages versions after the initial entry.
+          # If a package is missing, seed it with 0.0.0 so release-please
+          # creates an initial release PR based on conventional commits.
           manifest=$(cat .release-please-manifest.json)
           for d in packages/*/; do
             [ -f "$d/package.json" ] && [ -d "$d/src" ] || continue
@@ -60,7 +60,7 @@ jobs:
             if echo "$manifest" | jq -e --arg p "$pkg_path" 'has($p)' > /dev/null 2>&1; then
               continue
             fi
-            version=$(jq -r '.version // "0.0.0"' "$d/package.json")
+            version="0.0.0"
             echo "Seeding manifest entry: $pkg_path -> $version"
             manifest=$(echo "$manifest" | jq --arg p "$pkg_path" --arg v "$version" '. + {($p): $v}')
           done
@@ -90,7 +90,7 @@ jobs:
             if echo "$manifest" | jq -e --arg p "$pkg_path" 'has($p)' > /dev/null 2>&1; then
               continue
             fi
-            version=$(jq -r '.version // "0.0.0"' "$d/package.json")
+            version="0.0.0"
             echo "Seeding manifest entry: $pkg_path -> $version"
             manifest=$(echo "$manifest" | jq --arg p "$pkg_path" --arg v "$version" '. + {($p): $v}')
           done
