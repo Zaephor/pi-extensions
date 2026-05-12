@@ -1,2 +1,2 @@
 command -v npx >/dev/null 2>&1 || exit 0
-npx --no -- commitlint --edit $1 2>/dev/null || true
+npx --no -- commitlint --edit $1
