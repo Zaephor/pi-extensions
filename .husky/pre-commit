@@ -1,6 +1,12 @@
 # Guard: skip hooks when dev dependencies aren't installed (e.g. consumer installs)
 command -v npx >/dev/null 2>&1 || exit 0
 
+# Sync release-please config with discovered packages (auto-fix)
+scripts/sync-release-config.sh
+
+# If sync made changes, re-stage them
+git diff --name-only --exit-code release-please-config.json .release-please-manifest.json >/dev/null 2>&1 || git add release-please-config.json .release-please-manifest.json
+
 # Lint and format staged files
 npx --no -- biome check --staged --no-errors-on-unmatched
 

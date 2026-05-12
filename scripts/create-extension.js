@@ -898,9 +898,17 @@ function updateRootTsconfig(name) {
 function updateReleaseManifest(name) {
 	const manifestPath = resolve(rootDir, ".release-please-manifest.json");
 	const manifest = readJsonWithRetry(manifestPath);
-	manifest[`packages/${name}`] = "0.1.0";
+	manifest[`packages/${name}`] = "0.0.0";
 	writeJsonAtomic(manifestPath, manifest);
 	console.log(`Updated .release-please-manifest.json with packages/${name}`);
+
+	// Also add to release-please-config.json
+	const configPath = resolve(rootDir, "release-please-config.json");
+	const config = readJsonWithRetry(configPath);
+	if (!config.packages) config.packages = {};
+	config.packages[`packages/${name}`] = { "release-type": "node", "changelog-type": "default" };
+	writeJsonAtomic(configPath, config);
+	console.log(`Updated release-please-config.json with packages/${name}`);
 }
 
 function updateRootPackageJson() {

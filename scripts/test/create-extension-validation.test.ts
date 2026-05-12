@@ -299,6 +299,15 @@ describe("create-extension root config updates", () => {
 
 	it("adds entry to .release-please-manifest.json", () => {
 		const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
-		expect(manifest[`packages/${extName}`]).toBe("0.1.0");
+		expect(manifest[`packages/${extName}`]).toBe("0.0.0");
+	});
+
+	it("adds entry to release-please-config.json", () => {
+		const configPath = resolve(rootDir, "release-please-config.json");
+		const config = JSON.parse(readFileSync(configPath, "utf-8"));
+		expect(config.packages[`packages/${extName}`]).toEqual({
+			"release-type": "node",
+			"changelog-type": "default",
+		});
 	});
 });

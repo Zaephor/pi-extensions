@@ -60,6 +60,9 @@ jobs:
       - name: Lint
         run: npm run check
 
+      - name: Check release-please config sync
+        run: npm run sync-release-config -- --check
+
   test-package:
     needs: detect-packages
     if: needs.detect-packages.outputs.has-packages == 'true'
