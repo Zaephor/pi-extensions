@@ -9,66 +9,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  generate-release-config:
-    runs-on: ubuntu-latest
-    outputs:
-      config: ${{ steps.generate.outputs.config }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Generate release-please config from packages
-        id: generate
-        run: |
-          # Scan packages/ for dirs with package.json + src/ (same logic as CI detect-packages)
-          # Build the release-please packages config dynamically
-          packages_config=$(
-            for d in packages/*/; do
-              [ -f "$d/package.json" ] && [ -d "$d/src" ] || continue
-              # Strip trailing slash and packages/ prefix
-              pkg_path="${d%/}"
-              echo "$pkg_path"
-            done | jq -R -s -c '
-              split("\n") | map(select(length > 0))
-              | map({ key: ., value: { "release-type": "node", "changelog-type": "default" } })
-              | from_entries
-            '
-          )
-
-          # Preserve bootstrap-sha if it exists in the checked-in config
-          bootstrap_sha=$(jq -r '."bootstrap-sha" // empty' release-please-config.json)
-          if [ -n "$bootstrap_sha" ] && [ "$bootstrap_sha" != "null" ]; then
-            config=$(echo "$packages_config" | jq --arg sha "$bootstrap_sha" '. + {"bootstrap-sha": $sha}')
-          else
-            config="$packages_config"
-          fi
-
-          # Use heredoc delimiter for multi-line output (GITHUB_OUTPUT multiline format)
-          delimiter="$(openssl rand -hex 16)"
-          echo "config<<${delimiter}" >> "$GITHUB_OUTPUT"
-          echo "$config" >> "$GITHUB_OUTPUT"
-          echo "${delimiter}" >> "$GITHUB_OUTPUT"
-
-      - name: Seed manifest entries for new packages
-        run: |
-          # Ensure every discovered package has an entry in .release-please-manifest.json.
-          # If a package is missing, seed it with 0.0.0 so release-please
-          # creates an initial release PR based on conventional commits.
-          manifest=$(cat .release-please-manifest.json)
-          for d in packages/*/; do
-            [ -f "$d/package.json" ] && [ -d "$d/src" ] || continue
-            pkg_path="${d%/}"
-            if echo "$manifest" | jq -e --arg p "$pkg_path" 'has($p)' > /dev/null 2>&1; then
-              continue
-            fi
-            version="0.0.0"
-            echo "Seeding manifest entry: $pkg_path -> $version"
-            manifest=$(echo "$manifest" | jq --arg p "$pkg_path" --arg v "$version" '. + {($p): $v}')
-          done
-          echo "$manifest" > .release-please-manifest.json
-          cat .release-please-manifest.json
-
   release-please:
-    needs: generate-release-config
     runs-on: ubuntu-latest
     outputs:
       releases_created: ${{ steps.release.outputs.releases_created }}
@@ -76,25 +17,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Write dynamic release-please config
-        run: |
-          # Write the generated config — use printf to avoid echo interpreting escape sequences
-          printf '%s\n' '${{ needs.generate-release-config.outputs.config }}' > release-please-config.json
-
-      - name: Seed manifest entries for new packages
-        run: |
-          manifest=$(cat .release-please-manifest.json)
-          for d in packages/*/; do
-            [ -f "$d/package.json" ] && [ -d "$d/src" ] || continue
-            pkg_path="${d%/}"
-            if echo "$manifest" | jq -e --arg p "$pkg_path" 'has($p)' > /dev/null 2>&1; then
-              continue
-            fi
-            version="0.0.0"
-            echo "Seeding manifest entry: $pkg_path -> $version"
-            manifest=$(echo "$manifest" | jq --arg p "$pkg_path" --arg v "$version" '. + {($p): $v}')
-          done
-          echo "$manifest" > .release-please-manifest.json
+      - name: Verify release-please config is in sync
+        run: npm run sync-release-config -- --check
 
       - uses: googleapis/release-please-action@v4
         id: release
