@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/Zaephor/pi-extensions/compare/pi-monorepo-registry-v0.2.1...pi-monorepo-registry-v0.2.2) (2026-05-12)
+
+
+### Bug Fixes
+
+* unshallow git clones before updating registry sources ([6b2da92](https://github.com/Zaephor/pi-extensions/commit/6b2da925efd016392d204cdbfed221ed185e2bd6))
+
 ## [0.2.1](https://github.com/Zaephor/pi-extensions/compare/pi-monorepo-registry-v0.2.0...pi-monorepo-registry-v0.2.1) (2026-05-04)
 
 
