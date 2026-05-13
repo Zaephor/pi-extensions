@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/Zaephor/pi-extensions/compare/pi-monorepo-registry-v0.2.2...pi-monorepo-registry-v0.2.3) (2026-05-13)
+
+
+### Bug Fixes
+
+* harden registry state persistence against concurrent access and crashes ([3dcf7b3](https://github.com/Zaephor/pi-extensions/commit/3dcf7b35820b4f4e21335e33771bea469928ec9c))
+
 ## [0.2.2](https://github.com/Zaephor/pi-extensions/compare/pi-monorepo-registry-v0.2.1...pi-monorepo-registry-v0.2.2) (2026-05-12)
 
 
