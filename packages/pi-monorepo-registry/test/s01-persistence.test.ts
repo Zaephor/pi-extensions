@@ -5,7 +5,7 @@
  * migrate older state files, and handle corruption gracefully.
  */
 
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -240,5 +240,260 @@ describe("saveState + loadState roundtrip", () => {
 
 		await saveState({ sources: [], installedPackages: [] });
 		expect(existsSync(nestedPath)).toBe(true);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Crash safety — atomic writes and backup recovery
+// ---------------------------------------------------------------------------
+describe("crash safety", () => {
+	const sampleState: RegistryState = {
+		sources: [
+			{
+				url: "https://github.com/org/repo",
+				shortName: "org/repo",
+				packagesRoot: "packages",
+				packages: [{ name: "pkg-a", description: "Test", version: "1.0.0", path: "/path/pkg-a", isPiPackage: true }],
+				lastUpdated: "2025-01-01T00:00:00Z",
+				rootPath: "/git/org/repo",
+			},
+		],
+		installedPackages: [
+			{
+				name: "pkg-a",
+				sourceUrl: "https://github.com/org/repo",
+				activationMode: "tarball",
+				installedAt: "2025-01-01T00:00:00Z",
+				targetPath: "/path/pkg-a",
+				extensionDir: "pkg-a",
+			},
+		],
+	};
+
+	it("creates a PID-scoped backup file on save", async () => {
+		await saveState(sampleState);
+
+		// First save — no backup yet (nothing to back up)
+		const files = readdirSync(tmpDir).filter((e) => e.startsWith("state.json.bak."));
+		expect(files.length).toBe(0);
+
+		// Second save with different data — should create backup of first
+		const modified: RegistryState = {
+			...sampleState,
+			sources: [
+				...sampleState.sources,
+				{
+					url: "https://github.com/org/repo2",
+					shortName: "org/repo2",
+					packagesRoot: "packages",
+					packages: [],
+					lastUpdated: "2025-01-02T00:00:00Z",
+					rootPath: "/git/org/repo2",
+				},
+			],
+		};
+		await saveState(modified);
+
+		// Backup should now exist with PID-scoped name
+		const backups = readdirSync(tmpDir).filter((e) => e.startsWith("state.json.bak."));
+		expect(backups.length).toBe(1);
+		expect(backups[0]).toMatch(/^state\.json\.bak\.\d+\.\d+\.\d+\.[a-z0-9]+$/);
+
+		// Backup should contain the first state (1 source)
+		const backupRaw = await import("node:fs/promises").then((fs) => fs.readFile(join(tmpDir, backups[0]), "utf-8"));
+		const backupParsed = JSON.parse(backupRaw);
+		expect(backupParsed.sources.length).toBe(1); // original had 1 source
+	});
+
+	it("recovers from corrupted state.json using PID-scoped backup", async () => {
+		// Save valid state first
+		await saveState(sampleState);
+
+		// Second save to create backup
+		await saveState(sampleState);
+
+		// Corrupt the primary file (simulates crash mid-write)
+		const statePath = join(tmpDir, "state.json");
+		writeFileSync(statePath, "{truncated...");
+
+		// loadState should recover from backup
+		const loaded = await loadState();
+		expect(loaded.sources.length).toBe(1);
+		expect(loaded.sources[0].url).toBe("https://github.com/org/repo");
+		expect(loaded.installedPackages.length).toBe(1);
+	});
+
+	it("restores state.json from backup after recovery", async () => {
+		await saveState(sampleState);
+		await saveState(sampleState);
+
+		// Corrupt primary
+		const statePath = join(tmpDir, "state.json");
+		writeFileSync(statePath, "bad");
+
+		// Load triggers recovery + restore
+		await loadState();
+
+		// Primary file should now be restored
+		const raw = await import("node:fs/promises").then((fs) => fs.readFile(statePath, "utf-8"));
+		const parsed = JSON.parse(raw);
+		expect(parsed.sources.length).toBe(1);
+	});
+
+	it("recovers from empty/truncated state.json using backup", async () => {
+		await saveState(sampleState);
+		await saveState(sampleState);
+
+		// Empty file (truncated write)
+		const statePath = join(tmpDir, "state.json");
+		writeFileSync(statePath, "");
+
+		const loaded = await loadState();
+		expect(loaded.sources.length).toBe(1);
+		expect(loaded.installedPackages.length).toBe(1);
+	});
+
+	it("returns empty state when primary and all backups are corrupted", async () => {
+		const statePath = join(tmpDir, "state.json");
+		writeFileSync(statePath, "{bad");
+		// Create a corrupted PID-scoped backup
+		writeFileSync(join(tmpDir, "state.json.bak.1234567890.12345.abcd12"), "{also-bad");
+
+		const loaded = await loadState();
+		expect(loaded.sources).toEqual([]);
+		expect(loaded.installedPackages).toEqual([]);
+	});
+
+	it("tries newest backup first when multiple exist", async () => {
+		// Three saves: "oldest" → "middle" → "current"
+		// After saves: state.json = "current", backups = ["middle" (newest), "oldest"]
+		await saveState({
+			...sampleState,
+			sources: [{ ...sampleState.sources[0], url: "https://github.com/org/oldest" }],
+		});
+		await saveState({
+			...sampleState,
+			sources: [{ ...sampleState.sources[0], url: "https://github.com/org/middle" }],
+		});
+		await saveState({
+			...sampleState,
+			sources: [{ ...sampleState.sources[0], url: "https://github.com/org/current" }],
+		});
+
+		// Corrupt primary
+		writeFileSync(join(tmpDir, "state.json"), "bad");
+
+		const loaded = await loadState();
+		// Should recover from the newest backup (which backed up "middle")
+		expect(loaded.sources[0].url).toBe("https://github.com/org/middle");
+	});
+
+	it("prunes old backups beyond MAX_BACKUPS", async () => {
+		// Save 7 times to create 6 backups (first save has nothing to back up)
+		for (let i = 0; i < 7; i++) {
+			await saveState({
+				...sampleState,
+				sources: [{ ...sampleState.sources[0], url: `https://github.com/org/repo-${i}` }],
+			});
+		}
+
+		// Should keep only MAX_BACKUPS (5) backup files
+		const backups = readdirSync(tmpDir).filter((e) => e.startsWith("state.json.bak."));
+		expect(backups.length).toBeLessThanOrEqual(5);
+	});
+
+	it("cleans up stale temp files from crashed writes", async () => {
+		// Simulate a leftover temp file from a crashed process
+		writeFileSync(join(tmpDir, ".state.json.tmp.1234567890.abc123"), "stale");
+
+		await saveState(sampleState);
+
+		// Stale temp file should be cleaned up
+		const temps = readdirSync(tmpDir).filter((e) => e.startsWith(".state.json.tmp."));
+		expect(temps.length).toBe(0);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Advisory locking — concurrent access protection
+// ---------------------------------------------------------------------------
+describe("advisory locking", () => {
+	it("cleans up lock after successful save", async () => {
+		await saveState({ sources: [], installedPackages: [] });
+		const lockDir = join(tmpDir, "state.json.lock");
+		expect(existsSync(lockDir)).toBe(false);
+	});
+
+	it("cleans up lock after successful load", async () => {
+		const statePath = join(tmpDir, "state.json");
+		writeFileSync(statePath, JSON.stringify({ sources: [], installedPackages: [] }));
+		await loadState();
+		const lockDir = join(tmpDir, "state.json.lock");
+		expect(existsSync(lockDir)).toBe(false);
+	});
+
+	it("serializes concurrent saves (no data loss)", async () => {
+		// Three concurrent saves with different source URLs
+		const saves = Array.from({ length: 3 }, (_, i) =>
+			saveState({
+				sources: [
+					{
+						url: `https://github.com/org/repo-${i}`,
+						shortName: `org/repo-${i}`,
+						packagesRoot: "packages",
+						packages: [],
+						lastUpdated: new Date().toISOString(),
+						rootPath: `/git/org/repo-${i}`,
+					},
+				],
+				installedPackages: [],
+			}),
+		);
+
+		// All should complete without error
+		await Promise.all(saves);
+
+		// Final state should be valid (one of the three)
+		const loaded = await loadState();
+		expect(loaded.sources.length).toBe(1);
+		expect(loaded.sources[0].url).toMatch(/repo-[012]$/);
+	});
+
+	it("handles save + load concurrency without corruption", async () => {
+		// Write initial state
+		await saveState({
+			sources: [
+				{
+					url: "https://github.com/org/initial",
+					shortName: "org/initial",
+					packagesRoot: "packages",
+					packages: [],
+					lastUpdated: new Date().toISOString(),
+					rootPath: "/git/org/initial",
+				},
+			],
+			installedPackages: [],
+		});
+
+		// Concurrent load and save
+		const [loaded] = await Promise.all([
+			loadState(),
+			saveState({
+				sources: [
+					{
+						url: "https://github.com/org/concurrent",
+						shortName: "org/concurrent",
+						packagesRoot: "packages",
+						packages: [],
+						lastUpdated: new Date().toISOString(),
+						rootPath: "/git/org/concurrent",
+					},
+				],
+				installedPackages: [],
+			}),
+		]);
+
+		// Load should have gotten either the initial or concurrent state
+		expect(loaded.sources.length).toBeGreaterThanOrEqual(1);
 	});
 });

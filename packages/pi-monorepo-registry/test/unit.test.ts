@@ -1,4 +1,7 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { discoverPackages, isPiCompatible } from "../src/discovery.js";
 import { ENTRY_TYPES, MonorepoRegistry } from "../src/registry.js";
 import type { RegistryState } from "../src/types.js";
@@ -274,8 +277,47 @@ describe("MonorepoRegistry", () => {
 
 // ---------------------------------------------------------------------------
 // Extension factory — command registration wiring
+//
+// Uses vi.mock to redirect paths.js to a temp directory, the same pattern
+// used by s01-persistence.test.ts.  This avoids touching process.env and
+// guarantees each test sees empty state regardless of test execution order.
 // ---------------------------------------------------------------------------
+
+// Must be at module scope — vi.mock is hoisted by Vitest.
+vi.mock("../src/paths.js", () => {
+	let _statePath: string;
+	return {
+		getStateFilePath: () => _statePath,
+		getExtensionsDir: () => _statePath.replace(/state\.json$/, "extensions"),
+		getGitDir: () => _statePath.replace(/state\.json$/, "git"),
+		getSettingsFilePath: () => _statePath.replace(/monorepo\/state\.json$/, "agent/settings.json"),
+		getMonorepoDir: () => _statePath.replace(/\/state\.json$/, ""),
+		getRegistryBaseDir: () => _statePath.replace(/\/monorepo\/state\.json$/, "/agent"),
+		resetRegistryBaseDir: () => {},
+		__setStatePath: (p: string) => {
+			_statePath = p;
+		},
+	};
+});
+
+const pathsMock = (await import("../src/paths.js")) as unknown as {
+	__setStatePath: (p: string) => void;
+};
+
 describe("extension factory", () => {
+	let factoryTmpDir: string;
+
+	beforeEach(() => {
+		factoryTmpDir = mkdtempSync(join(tmpdir(), "unit-factory-"));
+		pathsMock.__setStatePath(join(factoryTmpDir, "state.json"));
+	});
+
+	afterEach(() => {
+		if (factoryTmpDir && existsSync(factoryTmpDir)) {
+			rmSync(factoryTmpDir, { recursive: true, force: true });
+		}
+	});
+
 	it("registers two slash commands: /monorepo-registry and /monorepo-package", async () => {
 		const mod = await import("../src/index.js");
 		const { api, commands } = createMockAPI();

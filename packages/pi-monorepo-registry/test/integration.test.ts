@@ -7,7 +7,7 @@
  *   /monorepo-package  — install/remove/update/list packages
  */
 
-import { existsSync, unlinkSync } from "node:fs";
+import { existsSync, readdirSync, rmSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -93,10 +93,24 @@ describe("pi-monorepo-registry integration", () => {
 		const { resetRegistryBaseDir, getStateFilePath } = await import("../src/paths.js");
 		resetRegistryBaseDir();
 		// Clean up persisted registry state between tests
+		// (including backup and lock files to prevent cross-test recovery)
 		try {
 			const statePath = getStateFilePath();
+			const dir = join(statePath, "..");
 			if (existsSync(statePath)) {
 				unlinkSync(statePath);
+			}
+			// Clean up backup files, lock dir, and stale temps
+			if (existsSync(dir)) {
+				for (const entry of readdirSync(dir)) {
+					if (
+						entry.startsWith("state.json.bak.") ||
+						entry === "state.json.lock" ||
+						entry.startsWith(".state.json.tmp.")
+					) {
+						rmSync(join(dir, entry), { force: true, recursive: true });
+					}
+				}
 			}
 		} catch {
 			// Ignore — state file may not exist
