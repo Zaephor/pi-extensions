@@ -9,9 +9,6 @@
 		},
 		{
 			"path": "packages/pi-co-author"
-		},
-		{
-			"path": "packages/pi-duckduckgo"
 		}
 	]
 }

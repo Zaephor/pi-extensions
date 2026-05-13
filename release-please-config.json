@@ -6,10 +6,6 @@
 			"release-type": "node",
 			"changelog-type": "default"
 		},
-		"packages/pi-duckduckgo": {
-			"release-type": "node",
-			"changelog-type": "default"
-		},
 		"packages/pi-monorepo-registry": {
 			"release-type": "node",
 			"changelog-type": "default"
