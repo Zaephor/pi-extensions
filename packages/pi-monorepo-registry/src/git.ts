@@ -7,7 +7,7 @@
  */
 
 import { execSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { getGitDir } from "./paths.js";
 
@@ -164,20 +164,80 @@ export function resolveSourceRoot(url: string): { rootPath: string; cloned: bool
 	const targetDir = join(cacheDir, urlToDirName(url));
 
 	if (existsSync(join(targetDir, ".git"))) {
-		// Fetch and fast-forward — unshallow first so ff-only works on shallow clones
+		// Update existing clone: fetch + reset to latest remote HEAD.
+		// Use a simple pull strategy that works for both shallow and full clones.
 		try {
-			execSync("git fetch --unshallow 2>/dev/null || git fetch", {
+			// Try to unshallow first (best effort — may fail on some hosts)
+			try {
+				execSync("git fetch --unshallow 2>/dev/null", {
+					cwd: targetDir,
+					encoding: "utf-8",
+					stdio: ["pipe", "pipe", "pipe"],
+				});
+			} catch {
+				// Not shallow or host doesn't support unshallow — continue
+			}
+
+			// Fetch all refs (ensures origin/HEAD is updated)
+			execSync("git fetch --force", {
 				cwd: targetDir,
 				encoding: "utf-8",
 				stdio: ["pipe", "pipe", "pipe"],
 			});
-			execSync("git reset --hard origin/HEAD", {
+
+			// Determine the default branch (origin/HEAD may not exist on shallow clones)
+			let defaultBranch: string;
+			try {
+				defaultBranch = execSync("git rev-parse --abbrev-ref origin/HEAD", {
+					cwd: targetDir,
+					encoding: "utf-8",
+				}).trim();
+			} catch {
+				// Fallback: try common default branch names
+				try {
+					const branches = execSync("git branch -r", {
+						cwd: targetDir,
+						encoding: "utf-8",
+					}).trim();
+					if (branches.includes("origin/main")) {
+						defaultBranch = "origin/main";
+					} else if (branches.includes("origin/master")) {
+						defaultBranch = "origin/master";
+					} else {
+						// Use the first remote branch
+						defaultBranch = branches.split("\n")[0].trim();
+					}
+				} catch {
+					defaultBranch = "origin/main";
+				}
+			}
+
+			execSync(`git reset --hard ${defaultBranch}`, {
 				cwd: targetDir,
 				encoding: "utf-8",
 				stdio: ["pipe", "pipe", "pipe"],
 			});
-		} catch {
-			// Update failed — use existing clone, it may be offline
+
+			// Clean untracked files (deleted packages leave directories behind)
+			execSync("git clean -fd", {
+				cwd: targetDir,
+				encoding: "utf-8",
+				stdio: ["pipe", "pipe", "pipe"],
+			});
+		} catch (err) {
+			// If the update fails entirely, nuke and re-clone
+			console.warn(
+				`[monorepo-registry] Failed to update clone at ${targetDir}: ${err instanceof Error ? err.message : String(err)}. Re-cloning.`,
+			);
+			try {
+				rmSync(targetDir, { force: true, recursive: true });
+				execSync(`git clone --depth 1 "${url}" "${targetDir}"`, {
+					encoding: "utf-8",
+					stdio: ["pipe", "pipe", "pipe"],
+				});
+			} catch (cloneErr) {
+				throw new Error(`Failed to clone ${url}: ${cloneErr instanceof Error ? cloneErr.message : String(cloneErr)}`);
+			}
 		}
 	} else {
 		// Clone
