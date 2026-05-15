@@ -10,7 +10,7 @@
  * vi.mock("../src/paths.js") so tests never touch ~/.gsd/monorepo/.
  */
 
-import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
