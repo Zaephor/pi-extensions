@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.4](https://github.com/Zaephor/pi-extensions/compare/pi-monorepo-registry-v0.2.3...pi-monorepo-registry-v0.2.4) (2026-05-15)
+
+
+### Bug Fixes
+
+* update cloned sources correctly instead of using stale cache ([4852eec](https://github.com/Zaephor/pi-extensions/commit/4852eec213bf85574f0ceecf88c5b6037000692e))
+
 ## [0.2.3](https://github.com/Zaephor/pi-extensions/compare/pi-monorepo-registry-v0.2.2...pi-monorepo-registry-v0.2.3) (2026-05-13)
 
 
