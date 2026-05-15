@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.5](https://github.com/Zaephor/pi-extensions/compare/pi-monorepo-registry-v0.2.4...pi-monorepo-registry-v0.2.5) (2026-05-15)
+
+
+### Bug Fixes
+
+* mock paths.js in integration tests to prevent real state.json corruption ([81aa0f4](https://github.com/Zaephor/pi-extensions/commit/81aa0f4898eb0636aca69518da8abe026a1a3118))
+
 ## [0.2.4](https://github.com/Zaephor/pi-extensions/compare/pi-monorepo-registry-v0.2.3...pi-monorepo-registry-v0.2.4) (2026-05-15)
 
 
