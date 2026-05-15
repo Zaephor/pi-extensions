@@ -5,14 +5,43 @@
  * Tests both commands:
  *   /monorepo-registry — add/remove/list/update sources
  *   /monorepo-package  — install/remove/update/list packages
+ *
+ * IMPORTANT: All state persistence is redirected to a temp directory via
+ * vi.mock("../src/paths.js") so tests never touch ~/.gsd/monorepo/.
  */
 
-import { existsSync, readdirSync, rmSync, unlinkSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FixtureMonorepo } from "./helpers/fixture";
 import { cleanupFixture, createFixtureMonorepo } from "./helpers/fixture";
+
+// ---------------------------------------------------------------------------
+// Mock paths.js to redirect all filesystem operations to a temp directory.
+// Without this mock, tests would read/write to the REAL ~/.gsd/monorepo/.
+// Must be at module scope — vi.mock is hoisted by Vitest.
+// ---------------------------------------------------------------------------
+vi.mock("../src/paths.js", () => {
+	let _statePath: string;
+	return {
+		getStateFilePath: () => _statePath,
+		getExtensionsDir: () => _statePath.replace(/state\.json$/, "extensions"),
+		getGitDir: () => _statePath.replace(/state\.json$/, "git"),
+		getSettingsFilePath: () => _statePath.replace(/monorepo\/state\.json$/, "agent/settings.json"),
+		getMonorepoDir: () => _statePath.replace(/\/state\.json$/, ""),
+		getRegistryBaseDir: () => _statePath.replace(/\/monorepo\/state\.json$/, "/agent"),
+		resetRegistryBaseDir: () => {},
+		__setStatePath: (p: string) => {
+			_statePath = p;
+		},
+	};
+});
+
+const pathsMock = (await import("../src/paths.js")) as unknown as {
+	__setStatePath: (p: string) => void;
+};
 
 /**
  * Create a recording mock that captures appendEntry calls,
@@ -84,44 +113,21 @@ function testContext(notify?: (...args: any[]) => void) {
 
 describe("pi-monorepo-registry integration", () => {
 	const fixtures: FixtureMonorepo[] = [];
+	let _tmpDir: string;
+
+	beforeEach(() => {
+		_tmpDir = mkdtempSync(join(tmpdir(), "pi-reg-integration-"));
+		pathsMock.__setStatePath(join(_tmpDir, "monorepo", "state.json"));
+	});
 
 	afterEach(async () => {
 		for (const f of fixtures.splice(0)) {
 			await cleanupFixture(f);
 		}
-		// Reset cached base dir so next test re-resolves from env vars
-		const { resetRegistryBaseDir, getStateFilePath } = await import("../src/paths.js");
-		resetRegistryBaseDir();
-		// Clean up persisted registry state between tests
-		// (including backup and lock files to prevent cross-test recovery)
-		try {
-			const statePath = getStateFilePath();
-			const dir = join(statePath, "..");
-			if (existsSync(statePath)) {
-				unlinkSync(statePath);
-			}
-			// Clean up backup files, lock dir, and stale temps
-			if (existsSync(dir)) {
-				for (const entry of readdirSync(dir)) {
-					if (
-						entry.startsWith("state.json.bak.") ||
-						entry === "state.json.lock" ||
-						entry.startsWith(".state.json.tmp.")
-					) {
-						rmSync(join(dir, entry), { force: true, recursive: true });
-					}
-				}
-			}
-		} catch {
-			// Ignore — state file may not exist
+		// Clean up temp state directory
+		if (_tmpDir && existsSync(_tmpDir)) {
+			rmSync(_tmpDir, { recursive: true, force: true });
 		}
-	});
-
-	// Reset cached base dir before each test too, in case a previous test's
-	// env var changes leaked into the cache
-	beforeEach(async () => {
-		const { resetRegistryBaseDir } = await import("../src/paths.js");
-		resetRegistryBaseDir();
 	});
 
 	it("factory initializes and registers /monorepo-registry and /monorepo-package commands", async () => {
