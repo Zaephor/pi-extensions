@@ -440,3 +440,141 @@ describe("ENTRY_TYPES", () => {
 		expect(ENTRY_TYPES.PACKAGES_DISCOVERED).toBe("monorepo-packages-discovered");
 	});
 });
+
+// ---------------------------------------------------------------------------
+// Subcommand dispatch — verify each branch produces exactly ONE notification
+// ---------------------------------------------------------------------------
+
+describe("subcommand dispatch produces exactly one notification", () => {
+	let factoryTmpDir: string;
+
+	beforeEach(() => {
+		factoryTmpDir = mkdtempSync(join(tmpdir(), "unit-dispatch-"));
+		pathsMock.__setStatePath(join(factoryTmpDir, "state.json"));
+	});
+
+	afterEach(() => {
+		if (factoryTmpDir && existsSync(factoryTmpDir)) {
+			rmSync(factoryTmpDir, { recursive: true, force: true });
+		}
+	});
+
+	it("list with no sources shows exactly one info notification", async () => {
+		const mod = await import("../src/index.js");
+		const { api, commands } = createMockAPI();
+		await mod.default(api);
+
+		const notified: Array<{ msg: string; level: string }> = [];
+		const ctx = createMockContext({
+			notify: (msg: string, level: string) => notified.push({ msg, level }),
+		});
+		const regCmd = commands.find((c) => c.name === "monorepo-registry")!;
+		await regCmd.handler("list", ctx as any);
+
+		expect(notified).toHaveLength(1);
+		expect(notified[0].msg).toContain("No monorepo sources registered");
+		expect(notified[0].level).toBe("info");
+	});
+
+	it("update with no sources shows exactly one info notification", async () => {
+		const mod = await import("../src/index.js");
+		const { api, commands } = createMockAPI();
+		await mod.default(api);
+
+		const notified: Array<{ msg: string; level: string }> = [];
+		const ctx = createMockContext({
+			notify: (msg: string, level: string) => notified.push({ msg, level }),
+		});
+		const regCmd = commands.find((c) => c.name === "monorepo-registry")!;
+		await regCmd.handler("update", ctx as any);
+
+		expect(notified).toHaveLength(1);
+		expect(notified[0].msg).toContain("No sources to update");
+		expect(notified[0].level).toBe("info");
+	});
+
+	it("unknown subcommand shows exactly one error notification", async () => {
+		const mod = await import("../src/index.js");
+		const { api, commands } = createMockAPI();
+		await mod.default(api);
+
+		const notified: Array<{ msg: string; level: string }> = [];
+		const ctx = createMockContext({
+			notify: (msg: string, level: string) => notified.push({ msg, level }),
+		});
+		const regCmd = commands.find((c) => c.name === "monorepo-registry")!;
+		await regCmd.handler("bogus", ctx as any);
+
+		expect(notified).toHaveLength(1);
+		expect(notified[0].msg).toContain("Unknown subcommand: bogus");
+		expect(notified[0].level).toBe("error");
+	});
+
+	it("add without URL shows exactly one error notification", async () => {
+		const mod = await import("../src/index.js");
+		const { api, commands } = createMockAPI();
+		await mod.default(api);
+
+		const notified: Array<{ msg: string; level: string }> = [];
+		const ctx = createMockContext({
+			notify: (msg: string, level: string) => notified.push({ msg, level }),
+		});
+		const regCmd = commands.find((c) => c.name === "monorepo-registry")!;
+		await regCmd.handler("add", ctx as any);
+
+		expect(notified).toHaveLength(1);
+		expect(notified[0].msg).toContain("URL required");
+		expect(notified[0].level).toBe("error");
+	});
+
+	it("remove without source shows exactly one error notification", async () => {
+		const mod = await import("../src/index.js");
+		const { api, commands } = createMockAPI();
+		await mod.default(api);
+
+		const notified: Array<{ msg: string; level: string }> = [];
+		const ctx = createMockContext({
+			notify: (msg: string, level: string) => notified.push({ msg, level }),
+		});
+		const regCmd = commands.find((c) => c.name === "monorepo-registry")!;
+		await regCmd.handler("remove", ctx as any);
+
+		expect(notified).toHaveLength(1);
+		expect(notified[0].msg).toContain("source required");
+		expect(notified[0].level).toBe("error");
+	});
+
+	it("no subcommand shows exactly one error notification with usage", async () => {
+		const mod = await import("../src/index.js");
+		const { api, commands } = createMockAPI();
+		await mod.default(api);
+
+		const notified: Array<{ msg: string; level: string }> = [];
+		const ctx = createMockContext({
+			notify: (msg: string, level: string) => notified.push({ msg, level }),
+		});
+		const regCmd = commands.find((c) => c.name === "monorepo-registry")!;
+		await regCmd.handler("", ctx as any);
+
+		expect(notified).toHaveLength(1);
+		expect(notified[0].msg).toContain("Usage");
+		expect(notified[0].level).toBe("error");
+	});
+
+	it("/monorepo-package list with no packages shows exactly one info notification", async () => {
+		const mod = await import("../src/index.js");
+		const { api, commands } = createMockAPI();
+		await mod.default(api);
+
+		const notified: Array<{ msg: string; level: string }> = [];
+		const ctx = createMockContext({
+			notify: (msg: string, level: string) => notified.push({ msg, level }),
+		});
+		const pkgCmd = commands.find((c) => c.name === "monorepo-package")!;
+		await pkgCmd.handler("list", ctx as any);
+
+		expect(notified).toHaveLength(1);
+		expect(notified[0].msg).toContain("No packages installed");
+		expect(notified[0].level).toBe("info");
+	});
+});

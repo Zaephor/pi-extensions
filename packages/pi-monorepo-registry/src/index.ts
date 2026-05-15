@@ -57,130 +57,140 @@ export default async function (pi: ExtensionAPI) {
 				return;
 			}
 
-			if (subcommand === "add") {
-				const url = parts[1];
-				if (!url) {
-					ctx.ui.notify("Error: URL required. Usage: /monorepo-registry add <url> [packages-root]", "error");
-					return;
-				}
-				const packagesRoot = parts[2] ?? "packages";
-
-				try {
-					const { source, events } = await registry.addSource(url, packagesRoot);
-
-					// Record events via pi.appendEntry
-					for (const event of events) {
-						pi.appendEntry(event.type, event.data);
-					}
-
-					await persist(registry);
-					const pkgCount = source.packages.length;
-					ctx.ui.notify(
-						`Registry source added: ${source.shortName}\nDiscovered ${pkgCount} package${pkgCount !== 1 ? "s" : ""}.`,
-						"info",
-					);
-				} catch (err) {
-					ctx.ui.notify(`Error adding source: ${err instanceof Error ? err.message : String(err)}`, "error");
-				}
-			} else if (subcommand === "remove") {
-				const identifier = parts[1];
-				if (!identifier) {
-					ctx.ui.notify("Error: source required. Usage: /monorepo-registry remove <url-or-shortname>", "error");
-					return;
-				}
-
-				// Match by URL or shortName (case-insensitive)
-				let source = registry.findSource(identifier);
-				if (!source) {
-					source = registry.findByShortName(identifier);
-				}
-
-				if (!source) {
-					ctx.ui.notify(
-						`Source "${identifier}" not found. Use /monorepo-registry list to see registered sources.`,
-						"error",
-					);
-					return;
-				}
-
-				try {
-					const event = registry.removeSource(source.url);
-					pi.appendEntry(event.type, event.data);
-					await persist(registry);
-					ctx.ui.notify(`Registry source removed: ${source.shortName}`, "info");
-				} catch (err) {
-					ctx.ui.notify(`Error removing source: ${err instanceof Error ? err.message : String(err)}`, "error");
-				}
-			} else if (subcommand === "update") {
-				const identifier = parts[1]; // optional — update all if omitted
-
-				try {
-					const { updated, events } = await registry.updateSource(identifier);
-
-					// Record events via pi.appendEntry
-					for (const event of events) {
-						pi.appendEntry(event.type, event.data);
-					}
-
-					await persist(registry);
-					if (updated.length === 0) {
-						ctx.ui.notify("No sources to update.", "info");
+			switch (subcommand) {
+				case "add": {
+					const url = parts[1];
+					if (!url) {
+						ctx.ui.notify("Error: URL required. Usage: /monorepo-registry add <url> [packages-root]", "error");
 						return;
 					}
-					for (const source of updated) {
+					const packagesRoot = parts[2] ?? "packages";
+
+					try {
+						const { source, events } = await registry.addSource(url, packagesRoot);
+
+						// Record events via pi.appendEntry
+						for (const event of events) {
+							pi.appendEntry(event.type, event.data);
+						}
+
+						await persist(registry);
 						const pkgCount = source.packages.length;
 						ctx.ui.notify(
-							`Updated ${source.shortName}: ${pkgCount} package${pkgCount !== 1 ? "s" : ""} discovered.`,
+							`Registry source added: ${source.shortName}\nDiscovered ${pkgCount} package${pkgCount !== 1 ? "s" : ""}.`,
 							"info",
 						);
+					} catch (err) {
+						ctx.ui.notify(`Error adding source: ${err instanceof Error ? err.message : String(err)}`, "error");
 					}
-				} catch (err) {
-					ctx.ui.notify(`Error updating source: ${err instanceof Error ? err.message : String(err)}`, "error");
-				}
-			} else if (subcommand === "list") {
-				const sources = registry.getSources();
-
-				if (sources.length === 0) {
-					ctx.ui.notify(
-						`No monorepo sources registered.\nState: ${stateFilePath}\n\nUse /monorepo-registry add <url> to add a source.`,
-						"info",
-					);
 					return;
 				}
-
-				const pkgCounts = new Map<string, string[]>();
-				for (const source of sources) {
-					for (const pkg of source.packages) {
-						const owners = pkgCounts.get(pkg.name) ?? [];
-						owners.push(source.shortName);
-						pkgCounts.set(pkg.name, owners);
+				case "remove": {
+					const identifier = parts[1];
+					if (!identifier) {
+						ctx.ui.notify("Error: source required. Usage: /monorepo-registry remove <url-or-shortname>", "error");
+						return;
 					}
+
+					// Match by URL or shortName (case-insensitive)
+					let source = registry.findSource(identifier);
+					if (!source) {
+						source = registry.findByShortName(identifier);
+					}
+
+					if (!source) {
+						ctx.ui.notify(
+							`Source "${identifier}" not found. Use /monorepo-registry list to see registered sources.`,
+							"error",
+						);
+						return;
+					}
+
+					try {
+						const event = registry.removeSource(source.url);
+						pi.appendEntry(event.type, event.data);
+						await persist(registry);
+						ctx.ui.notify(`Registry source removed: ${source.shortName}`, "info");
+					} catch (err) {
+						ctx.ui.notify(`Error removing source: ${err instanceof Error ? err.message : String(err)}`, "error");
+					}
+					return;
 				}
+				case "update": {
+					const identifier = parts[1]; // optional — update all if omitted
 
-				const lines: string[] = ["Sources:", ""];
+					try {
+						const { updated, events } = await registry.updateSource(identifier);
 
-				for (const source of sources) {
-					lines.push(`📦 ${source.shortName}`);
-					lines.push(`   url: ${source.url}`);
-					lines.push(`   packages-root: ${source.packagesRoot}`);
-					lines.push(`   last updated: ${source.lastUpdated}`);
+						// Record events via pi.appendEntry
+						for (const event of events) {
+							pi.appendEntry(event.type, event.data);
+						}
 
-					if (source.packages.length === 0) {
-						lines.push("   (no packages discovered)");
-					} else {
+						await persist(registry);
+						if (updated.length === 0) {
+							ctx.ui.notify("No sources to update.", "info");
+							return;
+						}
+						for (const source of updated) {
+							const pkgCount = source.packages.length;
+							ctx.ui.notify(
+								`Updated ${source.shortName}: ${pkgCount} package${pkgCount !== 1 ? "s" : ""} discovered.`,
+								"info",
+							);
+						}
+					} catch (err) {
+						ctx.ui.notify(`Error updating source: ${err instanceof Error ? err.message : String(err)}`, "error");
+					}
+					return;
+				}
+				case "list": {
+					const sources = registry.getSources();
+
+					if (sources.length === 0) {
+						ctx.ui.notify(
+							`No monorepo sources registered.\nState: ${stateFilePath}\n\nUse /monorepo-registry add <url> to add a source.`,
+							"info",
+						);
+						return;
+					}
+
+					const pkgCounts = new Map<string, string[]>();
+					for (const source of sources) {
 						for (const pkg of source.packages) {
-							const desc = pkg.description ? ` — ${pkg.description}` : "";
-							const dup = (pkgCounts.get(pkg.name)?.length ?? 0) > 1 ? " ⚠️ duplicate" : "";
-							lines.push(`   • ${pkg.name}@${pkg.version}${desc}${dup}`);
+							const owners = pkgCounts.get(pkg.name) ?? [];
+							owners.push(source.shortName);
+							pkgCounts.set(pkg.name, owners);
 						}
 					}
 
-					lines.push("");
-				}
+					const lines: string[] = ["Sources:", ""];
 
-				ctx.ui.notify(lines.join("\n"), "info");
-			} else {
-				ctx.ui.notify(`Unknown subcommand: ${subcommand}. Use add, remove, list, or update.`, "error");
+					for (const source of sources) {
+						lines.push(`📦 ${source.shortName}`);
+						lines.push(`   url: ${source.url}`);
+						lines.push(`   packages-root: ${source.packagesRoot}`);
+						lines.push(`   last updated: ${source.lastUpdated}`);
+
+						if (source.packages.length === 0) {
+							lines.push("   (no packages discovered)");
+						} else {
+							for (const pkg of source.packages) {
+								const desc = pkg.description ? ` — ${pkg.description}` : "";
+								const dup = (pkgCounts.get(pkg.name)?.length ?? 0) > 1 ? " ⚠️ duplicate" : "";
+								lines.push(`   • ${pkg.name}@${pkg.version}${desc}${dup}`);
+							}
+						}
+
+						lines.push("");
+					}
+
+					ctx.ui.notify(lines.join("\n"), "info");
+					return;
+				}
+				default:
+					ctx.ui.notify(`Unknown subcommand: ${subcommand}. Use add, remove, list, or update.`, "error");
+					return;
 			}
 		},
 	});
@@ -209,225 +219,238 @@ export default async function (pi: ExtensionAPI) {
 			const settingsFilePath = getSettingsFilePath();
 			const gitDir = getGitDir();
 
-			if (subcommand === "install") {
-				const pkgName = parts[1];
-				if (!pkgName) {
-					ctx.ui.notify(
-						"Error: package name required. Usage: /monorepo-package install <name> [--dev <path>] [--git] [--source <url>] [--version <semver>]",
-						"error",
-					);
+			switch (subcommand) {
+				case "install": {
+					const pkgName = parts[1];
+					if (!pkgName) {
+						ctx.ui.notify(
+							"Error: package name required. Usage: /monorepo-package install <name> [--dev <path>] [--git] [--source <url>] [--version <semver>]",
+							"error",
+						);
+						return;
+					}
+
+					// Parse flags
+					let devPath: string | undefined;
+					let useGit = false;
+					let sourceId: string | undefined;
+					let version: string | undefined;
+
+					for (let i = 2; i < parts.length; i++) {
+						if (parts[i] === "--dev" && parts[i + 1]) {
+							devPath = parts[++i];
+						} else if (parts[i] === "--git") {
+							useGit = true;
+						} else if (parts[i] === "--source" && parts[i + 1]) {
+							sourceId = parts[++i];
+						} else if (parts[i] === "--version" && parts[i + 1]) {
+							version = parts[++i];
+						}
+					}
+
+					try {
+						if (devPath) {
+							// --dev mode: symlink to local checkout
+							const sourceUrl = sourceId ?? devPath;
+							const events = await pkgManager.installDev(pkgName, sourceUrl, {
+								localPath: devPath,
+								settingsFilePath,
+								extensionsDir,
+								gitDir,
+							});
+							for (const event of events) {
+								pi.appendEntry(event.type, event.data);
+							}
+							await persist(registry);
+							ctx.ui.notify(`Package "${pkgName}" installed (dev → ${devPath}).\nRun /reload to activate.`, "info");
+						} else if (useGit) {
+							// --git mode: clone + symlink
+							const source = resolveSourceForPackage(registry, pkgName, sourceId);
+							if (!source) {
+								ctx.ui.notify(
+									`No source found for package "${pkgName}". Register a source first with /monorepo-registry add, or specify --source.`,
+									"error",
+								);
+								return;
+							}
+							const events = await pkgManager.installGit(pkgName, source.url, {
+								sourceUrl: source.url,
+								packagesRoot: source.packagesRoot,
+								settingsFilePath,
+								extensionsDir,
+								gitDir,
+							});
+							for (const event of events) {
+								pi.appendEntry(event.type, event.data);
+							}
+							await persist(registry);
+							ctx.ui.notify(
+								`Package "${pkgName}" installed (git → ${source.shortName}).\nRun /reload to activate.`,
+								"info",
+							);
+						} else {
+							// Default: tarball mode
+							const source = resolveSourceForPackage(registry, pkgName, sourceId);
+							if (!source) {
+								ctx.ui.notify(
+									`No source found for package "${pkgName}". Register a source first with /monorepo-registry add, or specify --source.`,
+									"error",
+								);
+								return;
+							}
+							const pkgVersion = version ?? resolvePackageVersion(source, pkgName);
+							if (!pkgVersion) {
+								ctx.ui.notify(`Cannot determine version for "${pkgName}". Specify --version <semver>.`, "error");
+								return;
+							}
+
+							// Build monorepo-relative package path (e.g. "packages/pi-template")
+							const pkgDir = packageNameToDirName(pkgName);
+							const packagePath = `${source.packagesRoot}/${pkgDir}`;
+
+							const events = await pkgManager.installTarball(pkgName, source.url, {
+								sourceUrl: source.url,
+								version: pkgVersion,
+								packagePath,
+								settingsFilePath,
+								extensionsDir,
+								gitDir,
+							});
+							for (const event of events) {
+								pi.appendEntry(event.type, event.data);
+							}
+							await persist(registry);
+							ctx.ui.notify(
+								`Package "${pkgName}@${pkgVersion}" installed (tarball).\nRun /reload to activate.`,
+								"info",
+							);
+						}
+					} catch (err) {
+						ctx.ui.notify(`Error installing package: ${err instanceof Error ? err.message : String(err)}`, "error");
+					}
 					return;
 				}
-
-				// Parse flags
-				let devPath: string | undefined;
-				let useGit = false;
-				let sourceId: string | undefined;
-				let version: string | undefined;
-
-				for (let i = 2; i < parts.length; i++) {
-					if (parts[i] === "--dev" && parts[i + 1]) {
-						devPath = parts[++i];
-					} else if (parts[i] === "--git") {
-						useGit = true;
-					} else if (parts[i] === "--source" && parts[i + 1]) {
-						sourceId = parts[++i];
-					} else if (parts[i] === "--version" && parts[i + 1]) {
-						version = parts[++i];
+				case "remove": {
+					const pkgName = parts[1];
+					if (!pkgName) {
+						ctx.ui.notify("Error: package name required. Usage: /monorepo-package remove <name>", "error");
+						return;
 					}
-				}
 
-				try {
-					if (devPath) {
-						// --dev mode: symlink to local checkout
-						const sourceUrl = sourceId ?? devPath;
-						const events = await pkgManager.installDev(pkgName, sourceUrl, {
-							localPath: devPath,
+					try {
+						const events = await pkgManager.remove(pkgName, {
 							settingsFilePath,
 							extensionsDir,
-							gitDir,
 						});
 						for (const event of events) {
 							pi.appendEntry(event.type, event.data);
 						}
 						await persist(registry);
-						ctx.ui.notify(`Package "${pkgName}" installed (dev → ${devPath}).\nRun /reload to activate.`, "info");
-					} else if (useGit) {
-						// --git mode: clone + symlink
-						const source = resolveSourceForPackage(registry, pkgName, sourceId);
-						if (!source) {
-							ctx.ui.notify(
-								`No source found for package "${pkgName}". Register a source first with /monorepo-registry add, or specify --source.`,
-								"error",
-							);
-							return;
-						}
-						const events = await pkgManager.installGit(pkgName, source.url, {
-							sourceUrl: source.url,
-							packagesRoot: source.packagesRoot,
-							settingsFilePath,
-							extensionsDir,
-							gitDir,
-						});
-						for (const event of events) {
-							pi.appendEntry(event.type, event.data);
-						}
-						await persist(registry);
+						ctx.ui.notify(`Package "${pkgName}" removed.\nRun /reload to complete cleanup.`, "info");
+					} catch (err) {
+						ctx.ui.notify(`Error removing package: ${err instanceof Error ? err.message : String(err)}`, "error");
+					}
+					return;
+				}
+				case "update": {
+					const pkgName = parts[1];
+					if (!pkgName) {
 						ctx.ui.notify(
-							`Package "${pkgName}" installed (git → ${source.shortName}).\nRun /reload to activate.`,
-							"info",
+							"Error: package name required. Usage: /monorepo-package update <name> [--version <semver>]",
+							"error",
 						);
-					} else {
-						// Default: tarball mode
-						const source = resolveSourceForPackage(registry, pkgName, sourceId);
-						if (!source) {
+						return;
+					}
+
+					// Parse flags
+					let version: string | undefined;
+					for (let i = 2; i < parts.length; i++) {
+						if (parts[i] === "--version" && parts[i + 1]) {
+							version = parts[++i];
+						}
+					}
+
+					try {
+						const installed = pkgManager.findInstalled(pkgName);
+						if (!installed) {
+							ctx.ui.notify(`Package "${pkgName}" is not installed.`, "error");
+							return;
+						}
+						if (installed.activationMode !== "tarball") {
 							ctx.ui.notify(
-								`No source found for package "${pkgName}". Register a source first with /monorepo-registry add, or specify --source.`,
+								`Cannot update "${pkgName}": update is only supported for tarball-activated packages (current mode: ${installed.activationMode}). For dev/git packages, update the source directly.`,
 								"error",
 							);
 							return;
 						}
+
+						// Resolve source and version
+						const source = registry.findSource(installed.sourceUrl) ?? registry.findByShortName(installed.sourceUrl);
+						if (!source) {
+							ctx.ui.notify(
+								`Source "${installed.sourceUrl}" not found in registry. Cannot resolve update URL. Re-add the source first.`,
+								"error",
+							);
+							return;
+						}
+
 						const pkgVersion = version ?? resolvePackageVersion(source, pkgName);
 						if (!pkgVersion) {
 							ctx.ui.notify(`Cannot determine version for "${pkgName}". Specify --version <semver>.`, "error");
 							return;
 						}
 
-						// Build monorepo-relative package path (e.g. "packages/pi-template")
 						const pkgDir = packageNameToDirName(pkgName);
 						const packagePath = `${source.packagesRoot}/${pkgDir}`;
 
-						const events = await pkgManager.installTarball(pkgName, source.url, {
+						const events = await pkgManager.update(pkgName, {
 							sourceUrl: source.url,
 							version: pkgVersion,
 							packagePath,
 							settingsFilePath,
 							extensionsDir,
-							gitDir,
 						});
 						for (const event of events) {
 							pi.appendEntry(event.type, event.data);
 						}
 						await persist(registry);
-						ctx.ui.notify(`Package "${pkgName}@${pkgVersion}" installed (tarball).\nRun /reload to activate.`, "info");
+						ctx.ui.notify(`Package "${pkgName}" updated to ${pkgVersion}.\nRun /reload to activate.`, "info");
+					} catch (err) {
+						ctx.ui.notify(`Error updating package: ${err instanceof Error ? err.message : String(err)}`, "error");
 					}
-				} catch (err) {
-					ctx.ui.notify(`Error installing package: ${err instanceof Error ? err.message : String(err)}`, "error");
-				}
-			} else if (subcommand === "remove") {
-				const pkgName = parts[1];
-				if (!pkgName) {
-					ctx.ui.notify("Error: package name required. Usage: /monorepo-package remove <name>", "error");
 					return;
 				}
+				case "list": {
+					const installed = pkgManager.listInstalled();
 
-				try {
-					const events = await pkgManager.remove(pkgName, {
-						settingsFilePath,
-						extensionsDir,
-					});
-					for (const event of events) {
-						pi.appendEntry(event.type, event.data);
-					}
-					await persist(registry);
-					ctx.ui.notify(`Package "${pkgName}" removed.\nRun /reload to complete cleanup.`, "info");
-				} catch (err) {
-					ctx.ui.notify(`Error removing package: ${err instanceof Error ? err.message : String(err)}`, "error");
-				}
-			} else if (subcommand === "update") {
-				const pkgName = parts[1];
-				if (!pkgName) {
-					ctx.ui.notify(
-						"Error: package name required. Usage: /monorepo-package update <name> [--version <semver>]",
-						"error",
-					);
-					return;
-				}
-
-				// Parse flags
-				let version: string | undefined;
-				for (let i = 2; i < parts.length; i++) {
-					if (parts[i] === "--version" && parts[i + 1]) {
-						version = parts[++i];
-					}
-				}
-
-				try {
-					const installed = pkgManager.findInstalled(pkgName);
-					if (!installed) {
-						ctx.ui.notify(`Package "${pkgName}" is not installed.`, "error");
-						return;
-					}
-					if (installed.activationMode !== "tarball") {
+					if (installed.length === 0) {
 						ctx.ui.notify(
-							`Cannot update "${pkgName}": update is only supported for tarball-activated packages (current mode: ${installed.activationMode}). For dev/git packages, update the source directly.`,
-							"error",
+							`No packages installed.\nState: ${stateFilePath}\n\nUse /monorepo-package install <name> to install a package.`,
+							"info",
 						);
 						return;
 					}
 
-					// Resolve source and version
-					const source = registry.findSource(installed.sourceUrl) ?? registry.findByShortName(installed.sourceUrl);
-					if (!source) {
-						ctx.ui.notify(
-							`Source "${installed.sourceUrl}" not found in registry. Cannot resolve update URL. Re-add the source first.`,
-							"error",
-						);
-						return;
+					const lines: string[] = ["Installed packages:", ""];
+
+					for (const pkg of installed) {
+						const modeLabel = modeToLabel(pkg.activationMode);
+						const source = registry.findSource(pkg.sourceUrl) ?? registry.findByShortName(pkg.sourceUrl);
+						const sourceLabel = source ? source.shortName : pkg.sourceUrl;
+						lines.push(`📦 ${pkg.name}`);
+						lines.push(`   mode: ${modeLabel}`);
+						lines.push(`   source: ${sourceLabel}`);
+						lines.push(`   installed: ${pkg.installedAt}`);
+						lines.push(`   target: ${pkg.targetPath}`);
+						lines.push("");
 					}
 
-					const pkgVersion = version ?? resolvePackageVersion(source, pkgName);
-					if (!pkgVersion) {
-						ctx.ui.notify(`Cannot determine version for "${pkgName}". Specify --version <semver>.`, "error");
-						return;
-					}
-
-					const pkgDir = packageNameToDirName(pkgName);
-					const packagePath = `${source.packagesRoot}/${pkgDir}`;
-
-					const events = await pkgManager.update(pkgName, {
-						sourceUrl: source.url,
-						version: pkgVersion,
-						packagePath,
-						settingsFilePath,
-						extensionsDir,
-					});
-					for (const event of events) {
-						pi.appendEntry(event.type, event.data);
-					}
-					await persist(registry);
-					ctx.ui.notify(`Package "${pkgName}" updated to ${pkgVersion}.\nRun /reload to activate.`, "info");
-				} catch (err) {
-					ctx.ui.notify(`Error updating package: ${err instanceof Error ? err.message : String(err)}`, "error");
-				}
-			} else if (subcommand === "list") {
-				const installed = pkgManager.listInstalled();
-
-				if (installed.length === 0) {
-					ctx.ui.notify(
-						`No packages installed.\nState: ${stateFilePath}\n\nUse /monorepo-package install <name> to install a package.`,
-						"info",
-					);
+					ctx.ui.notify(lines.join("\n"), "info");
 					return;
 				}
-
-				const lines: string[] = ["Installed packages:", ""];
-
-				for (const pkg of installed) {
-					const modeLabel = modeToLabel(pkg.activationMode);
-					const source = registry.findSource(pkg.sourceUrl) ?? registry.findByShortName(pkg.sourceUrl);
-					const sourceLabel = source ? source.shortName : pkg.sourceUrl;
-					lines.push(`📦 ${pkg.name}`);
-					lines.push(`   mode: ${modeLabel}`);
-					lines.push(`   source: ${sourceLabel}`);
-					lines.push(`   installed: ${pkg.installedAt}`);
-					lines.push(`   target: ${pkg.targetPath}`);
-					lines.push("");
-				}
-
-				ctx.ui.notify(lines.join("\n"), "info");
-			} else {
-				ctx.ui.notify(`Unknown subcommand: ${subcommand}. Use install, remove, update, or list.`, "error");
+				default:
+					ctx.ui.notify(`Unknown subcommand: ${subcommand}. Use install, remove, update, or list.`, "error");
+					return;
 			}
 		},
 	});

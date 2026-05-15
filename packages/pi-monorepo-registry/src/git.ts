@@ -151,7 +151,18 @@ export function isSelfUrl(url: string): boolean {
 export function resolveSourceRoot(url: string): { rootPath: string; cloned: boolean } {
 	// Check if this is the repo we're already running from
 	if (isGitUrl(url) && isSelfUrl(url)) {
-		return { rootPath: getExtensionMonorepoRoot(), cloned: false };
+		// Even for self-URLs, pull the latest to ensure versions are current
+		const monorepoRoot = getExtensionMonorepoRoot();
+		try {
+			execSync("git pull --ff-only 2>/dev/null", {
+				cwd: monorepoRoot,
+				encoding: "utf-8",
+				stdio: ["pipe", "pipe", "pipe"],
+			});
+		} catch {
+			// Pull failed (e.g., dirty working tree, no network) — use current checkout as-is
+		}
+		return { rootPath: monorepoRoot, cloned: false };
 	}
 
 	// If it's not a git URL, treat as a local path
@@ -165,7 +176,7 @@ export function resolveSourceRoot(url: string): { rootPath: string; cloned: bool
 
 	if (existsSync(join(targetDir, ".git"))) {
 		// Update existing clone: fetch + reset to latest remote HEAD.
-		// Use a simple pull strategy that works for both shallow and full clones.
+		// Use a robust strategy that works for both shallow and full clones.
 		try {
 			// Try to unshallow first (best effort — may fail on some hosts)
 			try {
@@ -178,12 +189,23 @@ export function resolveSourceRoot(url: string): { rootPath: string; cloned: bool
 				// Not shallow or host doesn't support unshallow — continue
 			}
 
-			// Fetch all refs (ensures origin/HEAD is updated)
-			execSync("git fetch --force", {
+			// Fetch all refs + prune stale branches (ensures origin/HEAD and branches are current)
+			execSync("git fetch --all --prune --force", {
 				cwd: targetDir,
 				encoding: "utf-8",
 				stdio: ["pipe", "pipe", "pipe"],
 			});
+
+			// Update origin/HEAD symbolic ref so `git rev-parse --abbrev-ref origin/HEAD` works
+			try {
+				execSync("git remote set-head origin --auto", {
+					cwd: targetDir,
+					encoding: "utf-8",
+					stdio: ["pipe", "pipe", "pipe"],
+				});
+			} catch {
+				// Some hosts don't support this — fallback below
+			}
 
 			// Determine the default branch (origin/HEAD may not exist on shallow clones)
 			let defaultBranch: string;
