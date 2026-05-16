@@ -1,6 +1,6 @@
 {
 	"name": "pi-monorepo-registry",
-	"version": "0.2.5",
+	"version": "0.2.6",
 	"type": "module",
 	"keywords": [
 		"pi-package"
