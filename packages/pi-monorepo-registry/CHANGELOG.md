@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.6](https://github.com/Zaephor/pi-extensions/compare/pi-monorepo-registry-v0.2.5...pi-monorepo-registry-v0.2.6) (2026-05-16)
+
+
+### Bug Fixes
+
+* harden subcommand dispatch and improve git update reliability ([109589a](https://github.com/Zaephor/pi-extensions/commit/109589a1ff70ec34600d45982d30ec41c689b5fb))
+
 ## [0.2.5](https://github.com/Zaephor/pi-extensions/compare/pi-monorepo-registry-v0.2.4...pi-monorepo-registry-v0.2.5) (2026-05-15)
 
 
