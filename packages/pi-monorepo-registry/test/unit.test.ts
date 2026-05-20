@@ -245,6 +245,50 @@ describe("MonorepoRegistry", () => {
 
 			await expect(registry.updateSource("https://nope.example.com")).rejects.toThrow("Source not found");
 		});
+
+		it("refreshes package version when package.json is updated on disk", async () => {
+			// Regression test: updateSource must re-read package.json from disk
+			// and reflect version changes (not use stale cached data).
+			const { writeFileSync, readFileSync } = await import("node:fs");
+			fixture = await createFixtureMonorepo("reg-version-refresh", [
+				{ name: "stale-pkg", version: "0.2.2", piExtensions: ["./src/index.ts"] },
+			]);
+
+			// Use a fresh state (not the shared emptyState which other tests may have mutated)
+			const freshState: RegistryState = { sources: [], installedPackages: [] };
+			const registry = new MonorepoRegistry(freshState);
+
+			// Initial add discovers version 0.2.2
+			const { source: added } = await registry.addSource(fixture.rootDir, "packages");
+			expect(added.packages[0].version).toBe("0.2.2");
+
+			// Simulate updating the package.json on disk to 0.2.6
+			const pkgJsonPath = join(fixture.packagesDir, "stale-pkg", "package.json");
+			const newPkgJson = JSON.stringify(
+				{ name: "stale-pkg", version: "0.2.6", description: "", pi: { extensions: ["./src/index.ts"] } },
+				null,
+				"\t",
+			);
+			writeFileSync(pkgJsonPath, newPkgJson);
+
+			// Verify the file was actually written
+			const readBack = JSON.parse(readFileSync(pkgJsonPath, "utf-8"));
+			expect(readBack.version).toBe("0.2.6");
+
+			// Verify discoverPackages reads the updated file
+			const refreshed = await discoverPackages(fixture.rootDir, "packages");
+			expect(refreshed).toHaveLength(1);
+			expect(refreshed[0].version).toBe("0.2.6");
+
+			// updateSource should pick up the new version
+			const { updated } = await registry.updateSource(fixture.rootDir);
+			expect(updated).toHaveLength(1);
+			expect(updated[0].packages[0].version).toBe("0.2.6");
+
+			// Verify the registry state reflects the new version
+			const sources = registry.getSources();
+			expect(sources[0].packages[0].version).toBe("0.2.6");
+		});
 	});
 
 	describe("getAllPackages", () => {
@@ -576,5 +620,42 @@ describe("subcommand dispatch produces exactly one notification", () => {
 		expect(notified).toHaveLength(1);
 		expect(notified[0].msg).toContain("No packages installed");
 		expect(notified[0].level).toBe("info");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// normalizeGitUrl — SSH/HTTPS equivalence
+// ---------------------------------------------------------------------------
+describe("normalizeGitUrl", () => {
+	it("strips trailing .git", async () => {
+		const { normalizeGitUrl } = await import("../src/git.js");
+		expect(normalizeGitUrl("https://github.com/owner/repo.git")).toBe("https://github.com/owner/repo");
+	});
+
+	it("strips trailing slashes", async () => {
+		const { normalizeGitUrl } = await import("../src/git.js");
+		expect(normalizeGitUrl("https://github.com/owner/repo/")).toBe("https://github.com/owner/repo");
+	});
+
+	it("normalizes SSH URLs to HTTPS form", async () => {
+		const { normalizeGitUrl } = await import("../src/git.js");
+		expect(normalizeGitUrl("git@github.com:owner/repo")).toBe("https://github.com/owner/repo");
+	});
+
+	it("normalizes SSH URLs with .git suffix to HTTPS form", async () => {
+		const { normalizeGitUrl } = await import("../src/git.js");
+		expect(normalizeGitUrl("git@github.com:owner/repo.git")).toBe("https://github.com/owner/repo");
+	});
+
+	it("makes SSH and HTTPS URLs compare equal", async () => {
+		const { normalizeGitUrl } = await import("../src/git.js");
+		const ssh = normalizeGitUrl("git@github.com:Zaephor/pi-extensions.git");
+		const https = normalizeGitUrl("https://github.com/Zaephor/pi-extensions.git");
+		expect(ssh).toBe(https);
+	});
+
+	it("preserves HTTPS URLs unchanged (after .git strip)", async () => {
+		const { normalizeGitUrl } = await import("../src/git.js");
+		expect(normalizeGitUrl("https://github.com/owner/repo")).toBe("https://github.com/owner/repo");
 	});
 });

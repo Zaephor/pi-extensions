@@ -134,8 +134,12 @@ export default async function (pi: ExtensionAPI) {
 						}
 						for (const source of updated) {
 							const pkgCount = source.packages.length;
+							const versionLines =
+								pkgCount > 0 ? source.packages.map((p) => `${p.name}@${p.version}`).join(", ") : "(no packages)";
 							ctx.ui.notify(
-								`Updated ${source.shortName}: ${pkgCount} package${pkgCount !== 1 ? "s" : ""} discovered.`,
+								`Updated ${source.shortName}: ${pkgCount} package${pkgCount !== 1 ? "s" : ""} discovered.\n` +
+									`   root: ${source.rootPath}\n` +
+									`   versions: ${versionLines}`,
 								"info",
 							);
 						}
@@ -169,6 +173,7 @@ export default async function (pi: ExtensionAPI) {
 					for (const source of sources) {
 						lines.push(`📦 ${source.shortName}`);
 						lines.push(`   url: ${source.url}`);
+						lines.push(`   root: ${source.rootPath}`);
 						lines.push(`   packages-root: ${source.packagesRoot}`);
 						lines.push(`   last updated: ${source.lastUpdated}`);
 

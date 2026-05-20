@@ -7,7 +7,7 @@
  */
 
 import { execSync } from "node:child_process";
-import { existsSync, rmSync } from "node:fs";
+import { existsSync, realpathSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { getGitDir } from "./paths.js";
 
@@ -53,7 +53,9 @@ export function extractShortName(url: string): string {
 
 /**
  * Normalize a git URL for comparison purposes.
- * Strips trailing .git, normalizes GitHub HTTPS URLs.
+ * Strips trailing .git, normalizes GitHub HTTPS URLs, and converts SSH URLs
+ * to HTTPS form so that `git@github.com:owner/repo` and
+ * `https://github.com/owner/repo` compare equal.
  */
 export function normalizeGitUrl(url: string): string {
 	let normalized = url.trim();
@@ -63,6 +65,12 @@ export function normalizeGitUrl(url: string): string {
 	}
 	// Strip trailing slashes
 	normalized = normalized.replace(/\/+$/, "");
+	// Normalize SSH URLs to HTTPS form for comparison
+	// git@github.com:owner/repo → https://github.com/owner/repo
+	const sshMatch = normalized.match(/^git@([^:]+):(.+)$/);
+	if (sshMatch) {
+		normalized = `https://${sshMatch[1]}/${sshMatch[2]}`;
+	}
 	return normalized;
 }
 
@@ -93,6 +101,9 @@ export function urlToDirName(url: string): string {
  * Get the monorepo root of the running extension.
  * Walks up from the current file to find the directory containing package.json
  * with workspaces (the monorepo root).
+ *
+ * Uses realpathSync to resolve any symlinks, ensuring the correct path
+ * even when the extension is installed via symlink (e.g., dev mode).
  */
 export function getExtensionMonorepoRoot(): string {
 	// The extension runs from packages/pi-monorepo-registry/src/
@@ -100,12 +111,18 @@ export function getExtensionMonorepoRoot(): string {
 	// Use import.meta.url for ESM-safe path resolution.
 	const thisDir = new URL(".", import.meta.url).pathname;
 	// Go up: src/ -> pi-monorepo-registry/ -> packages/ -> monorepo root
-	return join(thisDir, "..", "..", "..");
+	const rawRoot = join(thisDir, "..", "..", "..");
+	// Resolve symlinks so dev-mode installs point to the real monorepo root
+	try {
+		return realpathSync(rawRoot);
+	} catch {
+		return rawRoot;
+	}
 }
 
 /**
  * Check if a given git URL matches the monorepo this extension is running from.
- * Compares normalized URLs and also checks the local git remote.
+ * Compares normalized URLs (SSH and HTTPS forms are treated as equivalent).
  */
 export function isSelfUrl(url: string): boolean {
 	const normalizedInput = normalizeGitUrl(url);
@@ -119,17 +136,6 @@ export function isSelfUrl(url: string): boolean {
 		}).trim();
 		if (normalizeGitUrl(remoteUrl) === normalizedInput) {
 			return true;
-		}
-		// Also check with https://github.com/ prefix normalization
-		if (remoteUrl.startsWith("git@") && normalizedInput.startsWith("https://")) {
-			// git@github.com:owner/repo -> https://github.com/owner/repo
-			const sshMatch = remoteUrl.match(/^git@([^:]+):(.+)$/);
-			if (sshMatch) {
-				const httpsEquiv = `https://${sshMatch[1]}/${sshMatch[2]}`;
-				if (normalizeGitUrl(httpsEquiv) === normalizedInput) {
-					return true;
-				}
-			}
 		}
 	} catch {
 		// Not a git repo or no remote — can't match
@@ -161,13 +167,21 @@ export function resolveSourceRoot(url: string): { rootPath: string; cloned: bool
 			});
 		} catch {
 			// Pull failed (e.g., dirty working tree, no network) — use current checkout as-is
+			console.warn(
+				`[monorepo-registry] git pull failed for self-URL ${url}, using current checkout at ${monorepoRoot}`,
+			);
 		}
 		return { rootPath: monorepoRoot, cloned: false };
 	}
 
 	// If it's not a git URL, treat as a local path
 	if (!isGitUrl(url)) {
-		return { rootPath: url, cloned: false };
+		// Resolve symlinks for local paths too
+		try {
+			return { rootPath: realpathSync(url), cloned: false };
+		} catch {
+			return { rootPath: url, cloned: false };
+		}
 	}
 
 	// Clone or update the remote repo
