@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.7](https://github.com/Zaephor/pi-extensions/compare/pi-monorepo-registry-v0.2.6...pi-monorepo-registry-v0.2.7) (2026-05-20)
+
+
+### Bug Fixes
+
+* resolve stale version reporting in monorepo-registry list ([1795bb5](https://github.com/Zaephor/pi-extensions/commit/1795bb5a9cffbe8d290e8a340bcd56e301beadf8))
+
 ## [0.2.6](https://github.com/Zaephor/pi-extensions/compare/pi-monorepo-registry-v0.2.5...pi-monorepo-registry-v0.2.6) (2026-05-16)
 
 
