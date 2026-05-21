@@ -1,5 +1,5 @@
 {
 	"packages/pi-template": "0.3.1",
-	"packages/pi-monorepo-registry": "0.2.7",
+	"packages/pi-monorepo-registry": "0.2.8",
 	"packages/pi-co-author": "0.2.1"
 }

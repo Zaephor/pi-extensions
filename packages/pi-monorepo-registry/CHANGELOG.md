@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.8](https://github.com/Zaephor/pi-extensions/compare/pi-monorepo-registry-v0.2.7...pi-monorepo-registry-v0.2.8) (2026-05-21)
+
+
+### Bug Fixes
+
+* **monorepo-registry:** use fetch+reset instead of pull --ff-only for self-URL updates ([e5eac95](https://github.com/Zaephor/pi-extensions/commit/e5eac9551c50dd4bf3f8174cd072396eb31e76f2))
+
 ## [0.2.7](https://github.com/Zaephor/pi-extensions/compare/pi-monorepo-registry-v0.2.6...pi-monorepo-registry-v0.2.7) (2026-05-20)
 
 
