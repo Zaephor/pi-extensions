@@ -157,18 +157,66 @@ export function isSelfUrl(url: string): boolean {
 export function resolveSourceRoot(url: string): { rootPath: string; cloned: boolean } {
 	// Check if this is the repo we're already running from
 	if (isGitUrl(url) && isSelfUrl(url)) {
-		// Even for self-URLs, pull the latest to ensure versions are current
+		// Use fetch + reset (not pull) because the extension may be running
+		// from a shallow clone (depth 1) where git pull --ff-only fails due
+		// to missing common ancestor history. The fetch+reset strategy works
+		// on both shallow and full clones.
 		const monorepoRoot = getExtensionMonorepoRoot();
 		try {
-			execSync("git pull --ff-only 2>/dev/null", {
+			try {
+				execSync("git fetch --unshallow 2>/dev/null", {
+					cwd: monorepoRoot,
+					encoding: "utf-8",
+					stdio: ["pipe", "pipe", "pipe"],
+				});
+			} catch {
+				// Not shallow or host doesn't support unshallow — continue
+			}
+
+			execSync("git fetch --all --prune --force", {
 				cwd: monorepoRoot,
 				encoding: "utf-8",
 				stdio: ["pipe", "pipe", "pipe"],
 			});
-		} catch {
-			// Pull failed (e.g., dirty working tree, no network) — use current checkout as-is
+
+			let defaultBranch: string;
+			try {
+				defaultBranch = execSync("git rev-parse --abbrev-ref origin/HEAD", {
+					cwd: monorepoRoot,
+					encoding: "utf-8",
+				}).trim();
+			} catch {
+				try {
+					const branches = execSync("git branch -r", {
+						cwd: monorepoRoot,
+						encoding: "utf-8",
+					}).trim();
+					if (branches.includes("origin/main")) {
+						defaultBranch = "origin/main";
+					} else if (branches.includes("origin/master")) {
+						defaultBranch = "origin/master";
+					} else {
+						defaultBranch = branches.split("\n")[0].trim();
+					}
+				} catch {
+					defaultBranch = "origin/main";
+				}
+			}
+
+			execSync(`git reset --hard ${defaultBranch}`, {
+				cwd: monorepoRoot,
+				encoding: "utf-8",
+				stdio: ["pipe", "pipe", "pipe"],
+			});
+
+			execSync("git clean -fd", {
+				cwd: monorepoRoot,
+				encoding: "utf-8",
+				stdio: ["pipe", "pipe", "pipe"],
+			});
+		} catch (err) {
 			console.warn(
-				`[monorepo-registry] git pull failed for self-URL ${url}, using current checkout at ${monorepoRoot}`,
+				`[monorepo-registry] Failed to update self-URL at ${monorepoRoot}: ${err instanceof Error ? err.message : String(err)}. Using current checkout as-is.`,
 			);
 		}
 		return { rootPath: monorepoRoot, cloned: false };

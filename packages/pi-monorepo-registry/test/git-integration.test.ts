@@ -159,12 +159,8 @@ describe("resolveSourceRoot: symlink resolution for local paths", () => {
 // =====================================================================
 // CATEGORY 3: Discovery freshness — the version update scenario
 // =====================================================================
-// Simulates the exact scenario from the bug report:
-//   1. Package is at v0.2.2 when first discovered
-//   2. Package.json is updated to v0.2.6 on disk
-//   3. updateSource re-discovers and sees v0.2.6
-// This validates that discoverPackages always reads from disk (no caching).
-// Combined with the self-URL fix above, this confirms the full pipeline.
+// Validates that discoverPackages always reads from disk (no caching)
+// and updateSource reflects version bumps correctly.
 // =====================================================================
 
 describe("version refresh: package.json changes on disk are picked up", () => {
@@ -189,7 +185,7 @@ describe("version refresh: package.json changes on disk are picked up", () => {
 			pkgJsonPath,
 			JSON.stringify(
 				{
-					name: "pi-monorepo-registry",
+					name: "pi-monorego-registry",
 					version: "0.2.6",
 					description: "Registry",
 					pi: { extensions: ["./src/index.ts"] },
