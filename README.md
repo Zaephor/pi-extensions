@@ -1,6 +1,6 @@
 # pi-extensions
 
-A monorepo of extensions for the [pi](https://github.com/mariozechner/pi) coding agent.
+A monorepo of extensions for the [pi](https://github.com/earendil-works/pi) coding agent.
 
 ## Overview
 
@@ -8,7 +8,7 @@ This monorepo contains independently versioned and published pi extensions. Each
 
 The repo uses npm workspaces — no Turborepo, Lerna, or extra tooling. Versioning is handled by [release-please](https://github.com/googleapis/release-please) in manifest mode, which generates per-package release PRs based on [conventional commits](https://www.conventionalcommits.org/). Packages are consumed via `pi install git:github.com/Zaephor/pi-extensions`.
 
-> The `pi install` command itself is implemented in [pi](https://github.com/mariozechner/pi) — this repo provides the extensions that pi loads after install. Tests in `packages/pi-monorepo-registry` cover what happens once the registry is loaded (discovery, install/remove/update, settings.json bridging); the install handshake is owned by pi.
+> The `pi install` command itself is implemented in [pi](https://github.com/earendil-works/pi) — this repo provides the extensions that pi loads after install. Tests in `packages/pi-monorepo-registry` cover what happens once the registry is loaded (discovery, install/remove/update, settings.json bridging); the install handshake is owned by pi.
 
 ## Quick Start
 
@@ -57,6 +57,7 @@ This runs type-checking, linting, and the full test suite across all packages. I
    - The `"pi-package"` keyword is required for pi to recognize this as an extension.
    - The `"pi"."extensions"` array tells pi which files to load.
    - pi core packages are **peer dependencies** — pi bundles them at runtime and extensions must share the same instances (D002).
+   - The `@mariozechner/pi-*` scope is the **extension-loader contract**, not just a npm coordinate. Both the active pi fork ([earendil-works/pi](https://github.com/earendil-works/pi), published as `@earendil-works/pi-*`) and the open-gsd fork (`gsd-pi`, published as `@opengsd/gsd-pi`) alias `@mariozechner/pi-*` to their bundled internals at extension load. Importing from any other scope breaks cross-runtime loading. The `@mariozechner` packages are still on npm at v0.73.1 — that is the right `devDependencies` pin for local type-checking.
 
 3. **Create `src/index.ts`** with a default export function:
    ```ts

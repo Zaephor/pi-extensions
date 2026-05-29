@@ -1,6 +1,6 @@
 # pi-monorepo-registry
 
-A pure package manager for [pi](https://github.com/nicepkg/pi) extensions. Register monorepo sources, discover pi-compatible packages, and install them so pi/gsd's native extension loader can find them.
+A pure package manager for [pi](https://github.com/earendil-works/pi) extensions. Register monorepo sources, discover pi-compatible packages, and install them so pi/gsd's native extension loader can find them.
 
 This is **not** a runtime or plugin loader — it manages package registration in `settings.json` and creates symlinks or extracts tarballs so that pi's built-in extension system discovers and loads them.
 
@@ -19,7 +19,7 @@ pi install git:github.com/Zaephor/pi-extensions
 
 After installing, two commands become available: `/monorepo-registry` and `/monorepo-package`.
 
-> `pi install` is provided by [pi](https://github.com/mariozechner/pi) itself — this repo's tests verify the registry's behaviour once pi has loaded it (discovery, install/remove/update, settings.json bridging). The install handshake (cloning the git URL, locating extensions in the loaded repo) is pi's responsibility, not this package's.
+> `pi install` is provided by [pi](https://github.com/earendil-works/pi) itself — this repo's tests verify the registry's behaviour once pi has loaded it (discovery, install/remove/update, settings.json bridging). The install handshake (cloning the git URL, locating extensions in the loaded repo) is pi's responsibility, not this package's.
 
 ## Commands
 
