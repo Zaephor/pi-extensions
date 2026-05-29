@@ -4,6 +4,12 @@ A pure package manager for [pi](https://github.com/nicepkg/pi) extensions. Regis
 
 This is **not** a runtime or plugin loader — it manages package registration in `settings.json` and creates symlinks or extracts tarballs so that pi's built-in extension system discovers and loads them.
 
+## Platform support
+
+POSIX only (Linux, macOS). Tarball extraction and git clones shell out to
+`tar` and `git`, both of which must be on `$PATH`. Windows is not exercised
+by CI and not currently supported.
+
 ## Installation
 
 ```sh
@@ -186,6 +192,8 @@ packages/pi-monorepo-registry/
 │   ├── package-shape.test.ts
 │   ├── sdk-e2e.test.ts
 │   ├── cross-runtime-e2e.test.ts
+│   ├── git-integration.test.ts   # SSH/HTTPS normalization, isSelfUrl, symlink resolution
+│   ├── stale-clone.test.ts       # Regression: fetch+reset vs pull --ff-only on diverged clones
 │   ├── s01-paths.test.ts
 │   ├── s01-persistence.test.ts
 │   ├── s01-settings.test.ts
@@ -202,7 +210,7 @@ Run from the monorepo root or from `packages/pi-monorepo-registry`:
 npm test
 ```
 
-The test suite has four tiers plus cross-runtime and per-slice test files:
+The test suite has four tiers plus cross-runtime, per-slice, and regression test files:
 
 | Tier | Files | What it verifies |
 |------|-------|------------------|
@@ -212,6 +220,8 @@ The test suite has four tiers plus cross-runtime and per-slice test files:
 | SDK e2e | `test/sdk-e2e.test.ts` | Full pi runtime loads the extension via `SessionManager` |
 | Cross-runtime e2e | `test/cross-runtime-e2e.test.ts` | Extension loads correctly under both pi and gsd SDK runtimes |
 | Slice tests | `test/s02-*.test.ts` | PackageManager install/remove/update, tarball download and extraction |
+| Git integration | `test/git-integration.test.ts` | SSH/HTTPS URL normalization, `isSelfUrl` against the real workspace remote, local-path symlink resolution, version refresh from disk |
+| Stale clone regression | `test/stale-clone.test.ts` | Repros that `git pull --ff-only` fails on diverged shallow clones while `fetch + reset` succeeds |
 
 ## Development
 

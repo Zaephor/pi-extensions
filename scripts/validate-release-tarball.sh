@@ -1,40 +1,37 @@
 #!/usr/bin/env bash
-# validate-release-tarball.sh — Local simulation of CI pack + validate flow
+# validate-release-tarball.sh — Local simulation of CI pack + validate flow.
 #
 # Usage: bash scripts/validate-release-tarball.sh <package-path>
 # Example: bash scripts/validate-release-tarball.sh packages/pi-monorepo-registry
 #
-# This script mirrors the CI release workflow:
-#   1. Packs a tarball using the same tar command as CI
-#   2. Validates tarball contents (src/, package.json pi manifest, no node_modules)
-#   3. Reports results
-#
-# No actual GitHub release is created — this is for local testing only.
+# Mirrors the CI release workflow exactly by delegating to the shared
+# pack_release_tarball / validate_release_tarball functions in
+# scripts/lib/release-tarball.sh. If this script passes locally, the CI
+# tarball step will pack identical contents.
 
 set -euo pipefail
 
-# --- Argument parsing ---
 if [ $# -lt 1 ]; then
-  echo "Usage: bash scripts/validate-release-tarball.sh <package-path>"
-  echo "Example: bash scripts/validate-release-tarball.sh packages/pi-monorepo-registry"
-  exit 1
+	echo "Usage: bash scripts/validate-release-tarball.sh <package-path>"
+	echo "Example: bash scripts/validate-release-tarball.sh packages/pi-monorepo-registry"
+	exit 1
 fi
 
 PKG_PATH="$1"
 
-# Resolve to repo root (this script lives in scripts/)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-# Verify package path exists
 if [ ! -f "${REPO_ROOT}/${PKG_PATH}/package.json" ]; then
-  echo "❌ FAIL: No package.json found at ${PKG_PATH}/package.json"
-  exit 1
+	echo "❌ FAIL: No package.json found at ${PKG_PATH}/package.json"
+	exit 1
 fi
 
-cd "$REPO_ROOT"
+cd "${REPO_ROOT}"
 
-# --- Read package metadata ---
+# shellcheck source=lib/release-tarball.sh
+source "${SCRIPT_DIR}/lib/release-tarball.sh"
+
 pkg_name=$(jq -r '.name' "${PKG_PATH}/package.json")
 pkg_version=$(jq -r '.version' "${PKG_PATH}/package.json")
 tarball="${pkg_name}-${pkg_version}.tgz"
@@ -42,107 +39,25 @@ tarball="${pkg_name}-${pkg_version}.tgz"
 echo "=== Simulating release tarball for: ${pkg_name}@${pkg_version} ==="
 echo ""
 
-# --- Step 1: Pack tarball (same as CI) ---
 echo "--- Step 1: Packing tarball ---"
-tar -czf "$tarball" \
-  --exclude='node_modules' \
-  --exclude='.git' \
-  --exclude='.*' \
-  --exclude='*.tgz' \
-  -C "$(dirname "${PKG_PATH}")" "$(basename "${PKG_PATH}")"
-
+pack_release_tarball "${PKG_PATH}" "${tarball}"
 echo "Created: ${tarball}"
-echo "Size: $(ls -lh "$tarball" | awk '{print $5}')"
+echo "Size: $(ls -lh "${tarball}" | awk '{print $5}')"
+echo ""
+echo "--- Tarball contents ---"
+tar -tzf "${tarball}"
 echo ""
 
-# --- Step 2: Validate tarball contents (same logic as CI Validate step) ---
 echo "--- Step 2: Validating tarball contents ---"
-validate_dir=$(mktemp -d)
-tar -xzf "$tarball" -C "$validate_dir"
-
-# Find the extracted package directory (single top-level dir)
-pkg_dir=$(ls "$validate_dir")
-
-errors=0
-
-# Check 1: src/ directory exists
-if [ -d "${validate_dir}/${pkg_dir}/src" ]; then
-  echo "✅ src/ directory found"
+if validate_release_tarball "${tarball}"; then
+	echo ""
+	echo "Validation passed for ${tarball}"
+	echo ""
+	echo "Tarball preserved at: ${tarball}"
+	echo "(Delete manually when done: rm ${tarball})"
 else
-  echo "❌ FAIL: src/ directory missing"
-  errors=$((errors + 1))
+	echo ""
+	echo "❌ Validation FAILED"
+	rm -f "${tarball}"
+	exit 1
 fi
-
-# Check 2: package.json exists and has pi manifest
-pj="${validate_dir}/${pkg_dir}/package.json"
-if [ -f "$pj" ]; then
-  has_pi_ext=$(jq -e '.pi.extensions' "$pj" > /dev/null 2>&1 && echo "yes" || echo "no")
-  has_pi_kw=$(jq -e '.keywords | index("pi-package")' "$pj" > /dev/null 2>&1 && echo "yes" || echo "no")
-  if [ "$has_pi_ext" = "yes" ] || [ "$has_pi_kw" = "yes" ]; then
-    echo "✅ package.json has pi manifest (extensions=$has_pi_ext, keyword=$has_pi_kw)"
-  else
-    echo "❌ FAIL: package.json missing pi.extensions and pi-package keyword"
-    errors=$((errors + 1))
-  fi
-else
-  echo "❌ FAIL: package.json missing"
-  errors=$((errors + 1))
-fi
-
-# Check 3: No node_modules/ directory
-if [ -d "${validate_dir}/${pkg_dir}/node_modules" ]; then
-  echo "❌ FAIL: node_modules/ found in tarball"
-  errors=$((errors + 1))
-else
-  echo "✅ No node_modules/ in tarball"
-fi
-
-# Check 4: No dist/ directory
-if [ -d "${validate_dir}/${pkg_dir}/dist" ]; then
-  echo "❌ FAIL: dist/ found in tarball"
-  errors=$((errors + 1))
-else
-  echo "✅ No dist/ in tarball"
-fi
-
-# Check 5: No test/ directory
-if [ -d "${validate_dir}/${pkg_dir}/test" ]; then
-  echo "❌ FAIL: test/ found in tarball"
-  errors=$((errors + 1))
-else
-  echo "✅ No test/ in tarball"
-fi
-
-# Check 6: No .tsbuildinfo files
-if find "${validate_dir}/${pkg_dir}" -name '*.tsbuildinfo' | grep -q .; then
-  echo "❌ FAIL: .tsbuildinfo found in tarball"
-  errors=$((errors + 1))
-else
-  echo "✅ No .tsbuildinfo in tarball"
-fi
-
-# Check 7: No nested .tgz files
-if find "${validate_dir}/${pkg_dir}" -name '*.tgz' | grep -q .; then
-  echo "❌ FAIL: nested .tgz found in tarball"
-  errors=$((errors + 1))
-else
-  echo "✅ No nested .tgz in tarball"
-fi
-
-# Summary
-echo ""
-echo "=== Validation: ${errors} error(s) ==="
-
-# Cleanup
-rm -rf "$validate_dir"
-
-if [ "$errors" -gt 0 ]; then
-  echo "❌ Validation FAILED with ${errors} error(s)"
-  rm -f "$tarball"
-  exit 1
-fi
-
-echo "Validation passed for ${tarball}"
-echo ""
-echo "Tarball preserved at: ${tarball}"
-echo "(Delete manually when done: rm ${tarball})"

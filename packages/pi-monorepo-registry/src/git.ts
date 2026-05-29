@@ -75,10 +75,12 @@ export function normalizeGitUrl(url: string): string {
 }
 
 /**
- * Check if a URL looks like a git remote URL (https://, git://, ssh://, or user@host:path).
+ * Check if a URL looks like a git remote URL (https://, git://, ssh://, file://,
+ * or user@host:path). `file://` URLs are valid git remotes (`git clone file:///path`)
+ * and are useful for testing without standing up a network service.
  */
 export function isGitUrl(url: string): boolean {
-	return /^(https?:\/\/|git:\/\/|ssh:\/\/|git@|[^/]+:[^/]+\/)/.test(url.trim());
+	return /^(https?:\/\/|git:\/\/|ssh:\/\/|file:\/\/|git@|[^/]+:[^/]+\/)/.test(url.trim());
 }
 
 /**

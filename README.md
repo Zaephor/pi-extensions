@@ -169,4 +169,6 @@ release-please uses these to determine version bumps: `feat` â†’ minor, `fix` â†
 | D008 | Peer detection | Documented as guidance only, not implemented in pi-template code. |
 | D009 | Monorepo tooling | npm workspaces with `packages/*` glob. |
 
-See [DECISIONS.md](.gsd/DECISIONS.md) for full rationale on each decision.
+The table above is the canonical decision log. The detailed deliberation for each
+decision lives in the commit history (`git log --grep="D00"`) and in the
+release-please-managed CHANGELOG of the affected package.

@@ -60,145 +60,29 @@ jobs:
           echo "Package name: $(jq -r '.name' '${{ matrix.path }}/package.json')"
           echo "Package version: $(jq -r '.version' '${{ matrix.path }}/package.json')"
 
-      # Create tarball using files allowlist from package.json plus essential files
+      # Pack + validate via the shared lib script. Same logic as
+      # scripts/validate-release-tarball.sh — if local validate passes,
+      # this CI step packs identical contents.
       - name: Pack tarball
         run: |
+          source scripts/lib/release-tarball.sh
           pkg_name=$(jq -r '.name' "${{ matrix.path }}/package.json")
           pkg_version=$(jq -r '.version' "${{ matrix.path }}/package.json")
           tarball="${pkg_name}-${pkg_version}.tgz"
-          
-          # Build include list from package.json "files" + essential files
-          # Always include: package.json, README.md, LICENSE, CHANGELOG.md
-          includes=$(jq -r '(.files // []) | map(".*/\(.)/") | join(" ")' "${{ matrix.path }}/package.json")
-          # Add individual essential files that exist
-          for f in package.json README.md LICENSE CHANGELOG.md; do
-            if [ -f "${{ matrix.path }}/$f" ]; then
-              includes="$includes .*/$f"
-            fi
-          done
-          
-          echo "Creating tarball: ${tarball} from ${{ matrix.path }}"
-          echo "Including: $includes"
-          
-          # Create tarball using find + tar for precise control
-          staging=$(mktemp -d)
-          mkdir -p "$staging/$(basename '${{ matrix.path }}')"
-          
-          # Copy each file from the files allowlist + essential files
-          pkg_src="${{ matrix.path }}"
-          pkg_dst="$staging/$(basename '${{ matrix.path }}')"
-          
-          # Always copy essential root files
-          for f in package.json README.md LICENSE CHANGELOG.md; do
-            [ -f "$pkg_src/$f" ] && cp "$pkg_src/$f" "$pkg_dst/$f"
-          done
-          
-          # Copy directories listed in "files"
-          for dir in $(jq -r '(.files // []) | .[]' "${{ matrix.path }}/package.json"); do
-            if [ -d "$pkg_src/$dir" ]; then
-              cp -r "$pkg_src/$dir" "$pkg_dst/$dir"
-            elif [ -f "$pkg_src/$dir" ]; then
-              cp "$pkg_src/$dir" "$pkg_dst/$dir"
-            fi
-          done
-          
-          tar -czf "$tarball" -C "$staging" "$(basename '${{ matrix.path }}')"
-          rm -rf "$staging"
-          
-          echo "tarball=$tarball" >> "$GITHUB_ENV"
-          # Validate tarball contents
-          echo "--- Tarball contents ---"
-          tar -tzf "$tarball"
-          echo "--- Tarball size ---"
-          ls -lh "$tarball"
 
-      # Validate tarball contents: src/ present, package.json has pi manifest, no node_modules
+          pack_release_tarball "${{ matrix.path }}" "${tarball}"
+          echo "tarball=${tarball}" >> "$GITHUB_ENV"
+
+          echo "--- Tarball contents ---"
+          tar -tzf "${tarball}"
+          echo "--- Tarball size ---"
+          ls -lh "${tarball}"
+
       - name: Validate tarball contents
         run: |
+          source scripts/lib/release-tarball.sh
           echo "=== Validating tarball: ${tarball} ==="
-          validate_dir=$(mktemp -d)
-          tar -xzf "$tarball" -C "$validate_dir"
-          
-          # Find the extracted package directory (single top-level dir)
-          pkg_dir=$(ls "$validate_dir")
-          echo "Extracted to: ${validate_dir}/${pkg_dir}"
-          
-          errors=0
-          
-          # 1. Check src/ directory exists
-          if [ -d "${validate_dir}/${pkg_dir}/src" ]; then
-            echo "✅ src/ directory found"
-          else
-            echo "❌ FAIL: src/ directory missing"
-            errors=$((errors + 1))
-          fi
-          
-          # 2. Check package.json exists and has pi manifest (pi.extensions or pi-package keyword)
-          pj="${validate_dir}/${pkg_dir}/package.json"
-          if [ -f "$pj" ]; then
-            has_pi_ext=$(jq -e '.pi.extensions' "$pj" > /dev/null 2>&1 && echo "yes" || echo "no")
-            has_pi_kw=$(jq -e '.keywords | index("pi-package")' "$pj" > /dev/null 2>&1 && echo "yes" || echo "no")
-            if [ "$has_pi_ext" = "yes" ] || [ "$has_pi_kw" = "yes" ]; then
-              echo "✅ package.json has pi manifest (extensions=$has_pi_ext, keyword=$has_pi_kw)"
-            else
-              echo "❌ FAIL: package.json missing pi.extensions and pi-package keyword"
-              errors=$((errors + 1))
-            fi
-          else
-            echo "❌ FAIL: package.json missing"
-            errors=$((errors + 1))
-          fi
-          
-          # 3. Check no node_modules/ directory
-          if [ -d "${validate_dir}/${pkg_dir}/node_modules" ]; then
-            echo "❌ FAIL: node_modules/ found in tarball"
-            errors=$((errors + 1))
-          else
-            echo "✅ No node_modules/ in tarball"
-          fi
-          
-          # 4. Check no dist/ directory (build artifacts don't belong in release tarballs)
-          if [ -d "${validate_dir}/${pkg_dir}/dist" ]; then
-            echo "❌ FAIL: dist/ found in tarball — only src/ should be shipped"
-            errors=$((errors + 1))
-          else
-            echo "✅ No dist/ in tarball"
-          fi
-          
-          # 5. Check no test/ directory
-          if [ -d "${validate_dir}/${pkg_dir}/test" ]; then
-            echo "❌ FAIL: test/ found in tarball — tests should not be in release tarballs"
-            errors=$((errors + 1))
-          else
-            echo "✅ No test/ in tarball"
-          fi
-          
-          # 6. Check no .tsbuildinfo files
-          if find "${validate_dir}/${pkg_dir}" -name '*.tsbuildinfo' | grep -q .; then
-            echo "❌ FAIL: .tsbuildinfo found in tarball"
-            errors=$((errors + 1))
-          else
-            echo "✅ No .tsbuildinfo in tarball"
-          fi
-          
-          # 7. Check no nested .tgz files
-          if find "${validate_dir}/${pkg_dir}" -name '*.tgz' | grep -q .; then
-            echo "❌ FAIL: nested .tgz found in tarball"
-            errors=$((errors + 1))
-          else
-            echo "✅ No nested .tgz in tarball"
-          fi
-          
-          # Summary
-          echo ""
-          echo "=== Validation: ${errors} error(s) ==="
-          if [ "$errors" -gt 0 ]; then
-            echo "::error::Tarball validation failed with ${errors} error(s)"
-            rm -rf "$validate_dir"
-            exit 1
-          fi
-          echo "Validation passed for ${tarball}"
-          rm -rf "$validate_dir"
+          validate_release_tarball "${tarball}"
 
       # Build the tag body: strip "packages/" prefix, replace "/" with "--"
       # Then search for release-please tag: {tag-body}-v{version}

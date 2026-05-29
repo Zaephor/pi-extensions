@@ -29,7 +29,6 @@ jobs:
           echo "Detected: $packages"
 
   typecheck:
-    needs: detect-packages
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,7 +44,6 @@ jobs:
         run: npm run typecheck
 
   lint:
-    needs: detect-packages
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -86,7 +84,6 @@ jobs:
         run: npx vitest run --reporter=verbose packages/${{ matrix.package }}
 
   test-scripts:
-    needs: detect-packages
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -102,7 +99,6 @@ jobs:
         run: npx vitest run --config scripts/vitest.config.ts --reporter=verbose
 
   test-cli-e2e:
-    needs: detect-packages
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

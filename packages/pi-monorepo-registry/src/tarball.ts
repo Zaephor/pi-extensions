@@ -15,6 +15,7 @@
 
 import { execSync } from "node:child_process";
 import { createWriteStream, existsSync, mkdirSync, rmSync } from "node:fs";
+import http from "node:http";
 import https from "node:https";
 import { join } from "node:path";
 import { URL } from "node:url";
@@ -201,7 +202,11 @@ function downloadFile(url: string, destPath: string, options: DownloadFileOption
 			headers.Authorization = `Bearer ${options.token}`;
 		}
 
-		const request = https.get(url, { headers, timeout: options.timeout }, (response) => {
+		// Pick http vs https by URL protocol. Production release URLs are always
+		// HTTPS; the http branch exists so tests can serve fixture tarballs from
+		// a local loopback server without managing self-signed certs.
+		const client = url.startsWith("http://") ? http : https;
+		const request = client.get(url, { headers, timeout: options.timeout }, (response) => {
 			// Handle redirects (3xx)
 			if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400) {
 				const location = response.headers.location;
