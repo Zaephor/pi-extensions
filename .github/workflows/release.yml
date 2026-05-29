@@ -112,3 +112,68 @@ jobs:
           echo "Resolved release tag: ${release_tag}"
           gh release upload "$release_tag" "$tarball" --clobber
           echo "Upload complete: ${tarball} → ${release_tag}"
+
+  # ---------------------------------------------------------------------------
+  # Post-release smoke install
+  #
+  # For each just-released package, download the published GitHub release
+  # tarball over the actual public CDN and re-validate it with the same
+  # invariants the upload step ran on the local file. This catches:
+  #   - Tag-format / URL-construction drift between release-please and
+  #     tarball.ts buildReleaseTag / buildTarballUrl
+  #   - Upload step skipping a file or attaching the wrong artifact
+  #   - GitHub CDN serving something different from what we uploaded
+  #
+  # continue-on-error: true — smoke flakes (e.g. CDN propagation delays)
+  # must never fail a release. Failures are visible in the workflow run.
+  # ---------------------------------------------------------------------------
+  smoke-install:
+    needs: [release-please, upload-artifacts]
+    if: ${{ needs.release-please.outputs.releases_created == 'true' }}
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      matrix:
+        path: ${{ fromJson(needs.release-please.outputs.paths_released) }}
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download released tarball + revalidate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          source scripts/lib/release-tarball.sh
+
+          pkg_name=$(jq -r '.name' "${{ matrix.path }}/package.json")
+          pkg_version=$(jq -r '.version' "${{ matrix.path }}/package.json")
+          tag_body=$(echo "${{ matrix.path }}" | sed 's|packages/||; s|/|--|g')
+          tag="${tag_body}-v${pkg_version}"
+          filename="${pkg_name}-${pkg_version}.tgz"
+          url="https://github.com/${{ github.repository }}/releases/download/${tag}/${filename}"
+
+          echo "Smoke target: ${url}"
+
+          # Retry with backoff — newly-uploaded release assets can take a few
+          # seconds before the CDN serves them.
+          downloaded=false
+          for attempt in 1 2 3 4 5; do
+            if curl -fsSL --retry 0 -o "${filename}" "${url}"; then
+              downloaded=true
+              break
+            fi
+            echo "Attempt ${attempt} failed; sleeping $((attempt * 5))s before retry"
+            sleep $((attempt * 5))
+          done
+
+          if [ "${downloaded}" != "true" ]; then
+            echo "::warning::Smoke download failed for ${url} after 5 attempts"
+            exit 1
+          fi
+
+          echo "--- Downloaded ${filename} ---"
+          ls -lh "${filename}"
+
+          # Reuse the exact same validation the upload job ran locally
+          validate_release_tarball "${filename}"
+          rm -f "${filename}"

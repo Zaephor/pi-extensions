@@ -8,6 +8,8 @@ This monorepo contains independently versioned and published pi extensions. Each
 
 The repo uses npm workspaces — no Turborepo, Lerna, or extra tooling. Versioning is handled by [release-please](https://github.com/googleapis/release-please) in manifest mode, which generates per-package release PRs based on [conventional commits](https://www.conventionalcommits.org/). Packages are consumed via `pi install git:github.com/Zaephor/pi-extensions`.
 
+> The `pi install` command itself is implemented in [pi](https://github.com/mariozechner/pi) — this repo provides the extensions that pi loads after install. Tests in `packages/pi-monorepo-registry` cover what happens once the registry is loaded (discovery, install/remove/update, settings.json bridging); the install handshake is owned by pi.
+
 ## Quick Start
 
 ```sh

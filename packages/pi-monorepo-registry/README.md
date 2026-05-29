@@ -19,6 +19,8 @@ pi install git:github.com/Zaephor/pi-extensions
 
 After installing, two commands become available: `/monorepo-registry` and `/monorepo-package`.
 
+> `pi install` is provided by [pi](https://github.com/mariozechner/pi) itself — this repo's tests verify the registry's behaviour once pi has loaded it (discovery, install/remove/update, settings.json bridging). The install handshake (cloning the git URL, locating extensions in the loaded repo) is pi's responsibility, not this package's.
+
 ## Commands
 
 ### `/monorepo-registry` — Manage monorepo sources
