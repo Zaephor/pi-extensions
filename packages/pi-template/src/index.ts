@@ -2,8 +2,8 @@
  * pi-template — A minimal pi extension demonstrating tool, command, and event handler registration.
  */
 
-import { Type } from "@mariozechner/pi-ai";
-import type { ExtensionAPI, ToolDefinition } from "@mariozechner/pi-coding-agent";
+import { Type } from "@earendil-works/pi-ai";
+import type { ExtensionAPI, ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { TSchema } from "typebox";
 
 /**

@@ -2,7 +2,7 @@
  * Reusable mock for ExtensionAPI, capturing registerTool/registerCommand/on calls
  * so unit tests can assert on what the extension registered.
  */
-import type { ExtensionAPI, ExtensionHandler, ToolDefinition } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionHandler, ToolDefinition } from "@earendil-works/pi-coding-agent";
 
 /** A single captured tool registration. */
 export interface CapturedTool {

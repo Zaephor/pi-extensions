@@ -16,7 +16,7 @@
 
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { getAgentDir } from "@mariozechner/pi-coding-agent";
+import { getAgentDir } from "@earendil-works/pi-coding-agent";
 
 /** Resolve the agent directory, falling back to ~/.pi/agent on failure. */
 function resolveAgentDir(): string {

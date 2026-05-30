@@ -72,17 +72,17 @@ function generatePackageJson(name) {
 				test: "vitest run",
 			},
 			peerDependencies: {
-				"@mariozechner/pi-coding-agent": "*",
-				"@mariozechner/pi-ai": "*",
-				"@mariozechner/pi-agent-core": "*",
-				"@mariozechner/pi-tui": "*",
+				"@earendil-works/pi-coding-agent": "*",
+				"@earendil-works/pi-ai": "*",
+				"@earendil-works/pi-agent-core": "*",
+				"@earendil-works/pi-tui": "*",
 				typebox: "*",
 			},
 			devDependencies: {
-				"@mariozechner/pi-coding-agent": "^0.73.1",
-				"@mariozechner/pi-ai": "^0.73.1",
-				"@mariozechner/pi-agent-core": "^0.73.1",
-				"@mariozechner/pi-tui": "^0.73.1",
+				"@earendil-works/pi-coding-agent": "^0.77.0",
+				"@earendil-works/pi-ai": "^0.77.0",
+				"@earendil-works/pi-agent-core": "^0.77.0",
+				"@earendil-works/pi-tui": "^0.77.0",
 				typebox: "^1.1.0",
 			},
 		},
@@ -114,8 +114,8 @@ function generateSrcIndex(name) {
  * ${name} — A pi extension.
  */
 
-import { Type } from "@mariozechner/pi-ai";
-import type { ExtensionAPI, ToolDefinition } from "@mariozechner/pi-coding-agent";
+import { Type } from "@earendil-works/pi-ai";
+import type { ExtensionAPI, ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { TSchema } from "typebox";
 
 /**
@@ -232,7 +232,7 @@ function generateMockApi() {
  * Reusable mock for ExtensionAPI, capturing registerTool/registerCommand/on calls
  * so unit tests can assert on what the extension registered.
  */
-import type { ExtensionAPI, ExtensionHandler, ToolDefinition } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionHandler, ToolDefinition } from "@earendil-works/pi-coding-agent";
 
 /** A single captured tool registration. */
 export interface CapturedTool {
@@ -429,7 +429,7 @@ function generateIntegrationTest(name) {
  * complete initialization path end-to-end.
  */
 
-import type { ExtensionAPI, ExtensionHandler, ToolDefinition } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionHandler, ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -745,7 +745,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createAgentSession, DefaultResourceLoader, SessionManager } from "@mariozechner/pi-coding-agent";
+import { createAgentSession, DefaultResourceLoader, SessionManager } from "@earendil-works/pi-coding-agent";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const __filename = fileURLToPath(import.meta.url);

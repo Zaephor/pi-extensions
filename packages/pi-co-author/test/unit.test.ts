@@ -1,4 +1,4 @@
-import type { Api, Model } from "@mariozechner/pi-ai";
+import type { Api, Model } from "@earendil-works/pi-ai";
 import { describe, expect, it } from "vitest";
 import { appendTrailers, detectAgent, formatModelName, isGitCommit, type TrailerOptions } from "../src/commit.js";
 import { DEFAULT_MODE, FLAG_NAME, parseConfig } from "../src/config.js";

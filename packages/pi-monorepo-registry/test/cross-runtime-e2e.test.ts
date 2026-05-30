@@ -25,7 +25,9 @@ describe("Load registry via pi SDK", () => {
 
 	beforeAll(async () => {
 		const agentDir = makeTemp(`pi-reg-${nextId()}`);
-		const { DefaultResourceLoader, createAgentSession, SessionManager } = await import("@mariozechner/pi-coding-agent");
+		const { DefaultResourceLoader, createAgentSession, SessionManager } = await import(
+			"@earendil-works/pi-coding-agent"
+		);
 		const loader = new DefaultResourceLoader({
 			cwd: process.cwd(),
 			agentDir,

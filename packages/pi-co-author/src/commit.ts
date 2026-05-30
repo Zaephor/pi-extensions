@@ -4,7 +4,7 @@
  * @module commit
  */
 
-import type { Api, Model } from "@mariozechner/pi-ai";
+import type { Api, Model } from "@earendil-works/pi-ai";
 
 // ─── Trailer options ─────────────────────────────────────────────────
 

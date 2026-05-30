@@ -46,10 +46,10 @@ This runs type-checking, linting, and the full test suite across all packages. I
        "test": "vitest run"
      },
      "peerDependencies": {
-       "@mariozechner/pi-coding-agent": "*",
-       "@mariozechner/pi-ai": "*",
-       "@mariozechner/pi-agent-core": "*",
-       "@mariozechner/pi-tui": "*",
+       "@earendil-works/pi-coding-agent": "*",
+       "@earendil-works/pi-ai": "*",
+       "@earendil-works/pi-agent-core": "*",
+       "@earendil-works/pi-tui": "*",
        "typebox": "*"
      }
    }
@@ -57,18 +57,18 @@ This runs type-checking, linting, and the full test suite across all packages. I
    - The `"pi-package"` keyword is required for pi to recognize this as an extension.
    - The `"pi"."extensions"` array tells pi which files to load.
    - pi core packages are **peer dependencies** — pi bundles them at runtime and extensions must share the same instances (D002).
-   - `@mariozechner/pi-*` is the canonical import scope: it's the back-compat alias the active pi runtime ([earendil-works/pi](https://github.com/earendil-works/pi), published as `@earendil-works/pi-coding-agent`) resolves at extension load. We pin `devDependencies` to the latest `@mariozechner/pi-*` release on npm for local type-checking; the running pi binary supplies the runtime instances.
+   - Import from `@earendil-works/pi-*` — the native scope for the active pi runtime ([earendil-works/pi](https://github.com/earendil-works/pi)). `devDependencies` pin to the latest release for local type-checking; the running pi binary supplies the runtime instances via its loader's virtualModules map.
 
 3. **Create `src/index.ts`** with a default export function:
    ```ts
-   import { defineTool, type ExtensionAPI } from "@mariozechner/pi-coding-agent";
+   import { defineTool, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
    export default function (pi: ExtensionAPI) {
      // Register tools, commands, and event handlers here
    }
    ```
    - Use `defineTool()` for tools, `pi.registerCommand()` for slash commands, and `pi.on()` for events.
-   - Import `Type` from `@mariozechner/pi-ai` (not directly from typebox) for type-safe parameters.
+   - Import `Type` from `@earendil-works/pi-ai` (not directly from typebox) for type-safe parameters.
    - No build step — pi loads `.ts` source directly via jiti (D001).
 
 4. **Add to TypeScript project references** in the root `tsconfig.json` if you want type-checking from the root.

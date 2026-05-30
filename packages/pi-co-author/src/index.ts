@@ -13,7 +13,7 @@
  * @module pi-co-author
  */
 
-import type { BashToolCallEvent, ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { BashToolCallEvent, ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 import { appendTrailers, detectAgent, formatModelName, isGitCommit } from "./commit.js";
 import { DEFAULT_MODE, FLAG_NAME, parseConfig } from "./config.js";

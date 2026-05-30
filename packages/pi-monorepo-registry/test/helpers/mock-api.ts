@@ -2,7 +2,7 @@
  * Reusable mock for ExtensionAPI, adapted for pi-monorepo-registry tests.
  * Extends the pi-template mock pattern with appendEntry tracking.
  */
-import type { ExtensionAPI, ExtensionHandler } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ExtensionHandler } from "@earendil-works/pi-coding-agent";
 
 /** A single captured command registration. */
 export interface CapturedCommand {

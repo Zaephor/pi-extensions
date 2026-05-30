@@ -8,7 +8,7 @@
  * State is persisted to disk via persistence.ts.
  */
 
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { PackageManager, packageNameToDirName } from "./packages.js";
 import { getExtensionsDir, getGitDir, getSettingsFilePath, getStateFilePath } from "./paths.js";
 import { loadState, saveState } from "./persistence.js";

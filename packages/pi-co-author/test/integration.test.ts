@@ -6,7 +6,7 @@
  * complete initialization path end-to-end.
  */
 
-import type { Api, ExtensionAPI, ExtensionHandler, Model } from "@mariozechner/pi-coding-agent";
+import type { Api, ExtensionAPI, ExtensionHandler, Model } from "@earendil-works/pi-coding-agent";
 import { describe, expect, it } from "vitest";
 
 /**
