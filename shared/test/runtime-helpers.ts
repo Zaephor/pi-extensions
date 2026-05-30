@@ -13,7 +13,7 @@ import { afterAll } from "vitest";
 
 /** Resolve a path within a monorepo package from the shared test directory. */
 function resolveMonorepoPackagePath(pkg: string, subpath: string): string {
-	// shared/test/cross-runtime-helpers.ts -> monorepo root
+	// shared/test/runtime-helpers.ts -> monorepo root
 	const thisDir = path.dirname(fileURLToPath(import.meta.url));
 	const monorepoRoot = path.resolve(thisDir, "../..");
 	return path.join(monorepoRoot, "packages", pkg, subpath);

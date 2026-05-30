@@ -16,7 +16,7 @@ import {
 	makeTemp,
 	nextId,
 	resetIds,
-} from "../../../shared/test/cross-runtime-helpers.js";
+} from "../../../shared/test/runtime-helpers.js";
 
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 

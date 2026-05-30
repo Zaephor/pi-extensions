@@ -11,7 +11,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
-import { type loadViaPi, makeTemp, nextId, resetIds } from "../../../shared/test/cross-runtime-helpers.js";
+import { type loadViaPi, makeTemp, nextId, resetIds } from "../../../shared/test/runtime-helpers.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

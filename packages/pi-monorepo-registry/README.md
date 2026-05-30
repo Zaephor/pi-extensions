@@ -188,7 +188,7 @@ packages/pi-monorepo-registry/
 │   ├── integration.test.ts
 │   ├── package-shape.test.ts
 │   ├── sdk-e2e.test.ts
-│   ├── cross-runtime-e2e.test.ts
+│   ├── runtime-e2e.test.ts
 │   ├── git-integration.test.ts   # SSH/HTTPS normalization, isSelfUrl, symlink resolution
 │   ├── stale-clone.test.ts       # Regression: fetch+reset vs pull --ff-only on diverged clones
 │   ├── s01-paths.test.ts
@@ -207,7 +207,7 @@ Run from the monorepo root or from `packages/pi-monorepo-registry`:
 npm test
 ```
 
-The test suite has four tiers plus cross-runtime, per-slice, and regression test files:
+The test suite has four tiers plus runtime, per-slice, and regression test files:
 
 | Tier | Files | What it verifies |
 |------|-------|------------------|
@@ -215,7 +215,7 @@ The test suite has four tiers plus cross-runtime, per-slice, and regression test
 | Integration | `test/integration.test.ts` | Full command registration and handler execution |
 | Package shape | `test/package-shape.test.ts` | `package.json` has required pi manifest fields, correct file structure |
 | SDK e2e | `test/sdk-e2e.test.ts` | Full pi runtime loads the extension via `SessionManager` |
-| Runtime e2e | `test/cross-runtime-e2e.test.ts` | Extension loads correctly under the pi SDK runtime |
+| Runtime e2e | `test/runtime-e2e.test.ts` | Extension loads correctly under the pi SDK runtime |
 | Slice tests | `test/s02-*.test.ts` | PackageManager install/remove/update, tarball download and extraction |
 | Git integration | `test/git-integration.test.ts` | SSH/HTTPS URL normalization, `isSelfUrl` against the real workspace remote, local-path symlink resolution, version refresh from disk |
 | Stale clone regression | `test/stale-clone.test.ts` | Repros that `git pull --ff-only` fails on diverged shallow clones while `fetch + reset` succeeds |
