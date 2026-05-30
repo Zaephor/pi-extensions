@@ -25,9 +25,8 @@ interface ScaffoldResult {
 	stderr: string;
 }
 
-/** Run the scaffold script with the given argument and capture results. */
-function execScaffold(name?: string): Promise<ScaffoldResult> {
-	const args = name !== undefined ? [name] : [];
+/** Run the scaffold script with the given argument(s) and capture results. */
+function execScaffold(...args: string[]): Promise<ScaffoldResult> {
 	return new Promise((res) => {
 		execFile("node", [scaffoldScript, ...args], { cwd: rootDir }, (error, stdout, stderr) => {
 			res({

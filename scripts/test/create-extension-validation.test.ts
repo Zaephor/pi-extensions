@@ -25,9 +25,8 @@ interface ScaffoldResult {
 	stderr: string;
 }
 
-/** Run the scaffold script with the given argument and capture results. */
-function execScaffold(name?: string): Promise<ScaffoldResult> {
-	const args = name !== undefined ? [name] : [];
+/** Run the scaffold script with the given argument(s) and capture results. */
+function execScaffold(...args: string[]): Promise<ScaffoldResult> {
 	return new Promise((resolve) => {
 		execFile("node", [scaffoldScript, ...args], { cwd: rootDir }, (error, stdout, stderr) => {
 			resolve({
@@ -54,7 +53,7 @@ function cleanupExtension(name: string) {
 let originalTsconfig: string;
 let originalManifest: string;
 
-const allTestExtensions = ["test-validation-ext", "test-gen-ext", "test-dup-ext"];
+const allTestExtensions = ["test-validation-ext", "test-gen-ext", "test-dup-ext", "test-stateful-ext", "test-hook-ext"];
 
 beforeAll(() => {
 	originalTsconfig = readFileSync(tsconfigPath, "utf-8");
@@ -129,6 +128,37 @@ describe("create-extension name validation", () => {
 		const result = await execScaffold("pi-template");
 		expect(result.exitCode).toBe(1);
 		expect(result.stderr).toContain("reserved");
+	});
+
+	it("rejects reserved name pi-template-stateful", async () => {
+		const result = await execScaffold("pi-template-stateful");
+		expect(result.exitCode).toBe(1);
+		expect(result.stderr).toContain("reserved");
+	});
+
+	it("rejects reserved name pi-template-hook", async () => {
+		const result = await execScaffold("pi-template-hook");
+		expect(result.exitCode).toBe(1);
+		expect(result.stderr).toContain("reserved");
+	});
+
+	it("rejects unknown --template value", async () => {
+		const result = await execScaffold("test-validation-ext", "--template", "does-not-exist");
+		expect(result.exitCode).toBe(1);
+		expect(result.stderr).toContain("Template");
+		expect(result.stderr).toContain("not found");
+	});
+
+	it("rejects --template with no value", async () => {
+		const result = await execScaffold("test-validation-ext", "--template");
+		expect(result.exitCode).toBe(1);
+		expect(result.stderr).toContain("--template requires a value");
+	});
+
+	it("rejects unknown flags", async () => {
+		const result = await execScaffold("test-validation-ext", "--bogus");
+		expect(result.exitCode).toBe(1);
+		expect(result.stderr).toContain("Unknown flag");
 	});
 
 	it("rejects duplicate directory", async () => {
@@ -270,6 +300,56 @@ describe("create-extension file generation", () => {
 		it("contains installation instructions", () => {
 			expect(readme).toContain("pi install");
 		});
+	});
+});
+
+// ---------------------------------------------------------------------------
+// --template flag tests
+// ---------------------------------------------------------------------------
+
+describe("create-extension --template flag", () => {
+	const statefulExt = "test-stateful-ext";
+	const hookExt = "test-hook-ext";
+
+	afterEach(() => {
+		cleanupExtension(statefulExt);
+		cleanupExtension(hookExt);
+		writeFileSync(tsconfigPath, originalTsconfig);
+		writeFileSync(manifestPath, originalManifest);
+	});
+
+	it("scaffolds from pi-template-stateful and copies the counter tool", async () => {
+		const result = await execScaffold(statefulExt, "--template", "pi-template-stateful");
+		expect(result.exitCode).toBe(0);
+
+		const srcPath = resolve(packagesDir, statefulExt, "src/index.ts");
+		expect(existsSync(srcPath)).toBe(true);
+		const src = readFileSync(srcPath, "utf-8");
+		// The stateful template's domain artefacts must survive the copy.
+		expect(src).toContain("counter");
+		expect(src).toContain("reconstructCount");
+		// The package name is substituted; original template name should be gone.
+		expect(src).not.toContain("pi-template-stateful");
+		expect(src).toContain(statefulExt);
+	});
+
+	it("scaffolds from pi-template-hook and copies the redact helper", async () => {
+		const result = await execScaffold(hookExt, "--template", "pi-template-hook");
+		expect(result.exitCode).toBe(0);
+
+		const srcPath = resolve(packagesDir, hookExt, "src/index.ts");
+		expect(existsSync(srcPath)).toBe(true);
+		const src = readFileSync(srcPath, "utf-8");
+		expect(src).toContain("redact");
+		expect(src).toContain("tool_call");
+		expect(src).not.toContain("pi-template-hook");
+		expect(src).toContain(hookExt);
+	});
+
+	it("--template=<name> equals-form is accepted", async () => {
+		const result = await execScaffold(statefulExt, "--template=pi-template-stateful");
+		expect(result.exitCode).toBe(0);
+		expect(existsSync(resolve(packagesDir, statefulExt, "src/index.ts"))).toBe(true);
 	});
 });
 
