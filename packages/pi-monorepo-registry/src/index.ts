@@ -135,7 +135,9 @@ export default async function (pi: ExtensionAPI) {
 						for (const source of updated) {
 							const pkgCount = source.packages.length;
 							const versionLines =
-								pkgCount > 0 ? source.packages.map((p) => `${p.name}@${p.version}`).join(", ") : "(no packages)";
+								pkgCount > 0
+									? source.packages.map((p) => `${p.name}@${p.version}`).join(", ")
+									: "(no packages)";
 							ctx.ui.notify(
 								`Updated ${source.shortName}: ${pkgCount} package${pkgCount !== 1 ? "s" : ""} discovered.\n` +
 									`   root: ${source.rootPath}\n` +
@@ -267,7 +269,10 @@ export default async function (pi: ExtensionAPI) {
 								pi.appendEntry(event.type, event.data);
 							}
 							await persist(registry);
-							ctx.ui.notify(`Package "${pkgName}" installed (dev → ${devPath}).\nRun /reload to activate.`, "info");
+							ctx.ui.notify(
+								`Package "${pkgName}" installed (dev → ${devPath}).\nRun /reload to activate.`,
+								"info",
+							);
 						} else if (useGit) {
 							// --git mode: clone + symlink
 							const source = resolveSourceForPackage(registry, pkgName, sourceId);
@@ -305,7 +310,10 @@ export default async function (pi: ExtensionAPI) {
 							}
 							const pkgVersion = version ?? resolvePackageVersion(source, pkgName);
 							if (!pkgVersion) {
-								ctx.ui.notify(`Cannot determine version for "${pkgName}". Specify --version <semver>.`, "error");
+								ctx.ui.notify(
+									`Cannot determine version for "${pkgName}". Specify --version <semver>.`,
+									"error",
+								);
 								return;
 							}
 
@@ -331,7 +339,10 @@ export default async function (pi: ExtensionAPI) {
 							);
 						}
 					} catch (err) {
-						ctx.ui.notify(`Error installing package: ${err instanceof Error ? err.message : String(err)}`, "error");
+						ctx.ui.notify(
+							`Error installing package: ${err instanceof Error ? err.message : String(err)}`,
+							"error",
+						);
 					}
 					return;
 				}
@@ -390,7 +401,8 @@ export default async function (pi: ExtensionAPI) {
 						}
 
 						// Resolve source and version
-						const source = registry.findSource(installed.sourceUrl) ?? registry.findByShortName(installed.sourceUrl);
+						const source =
+							registry.findSource(installed.sourceUrl) ?? registry.findByShortName(installed.sourceUrl);
 						if (!source) {
 							ctx.ui.notify(
 								`Source "${installed.sourceUrl}" not found in registry. Cannot resolve update URL. Re-add the source first.`,

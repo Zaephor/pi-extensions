@@ -68,7 +68,13 @@ describe("loadState", () => {
 					shortName: "org/repo",
 					packagesRoot: "packages",
 					packages: [
-						{ name: "pkg-a", description: "A package", version: "1.0.0", path: "/some/path/pkg-a", isPiPackage: true },
+						{
+							name: "pkg-a",
+							description: "A package",
+							version: "1.0.0",
+							path: "/some/path/pkg-a",
+							isPiPackage: true,
+						},
 					],
 					lastUpdated: "2025-01-01T00:00:00Z",
 					rootPath: "/git/repo",
@@ -202,7 +208,9 @@ describe("saveState + loadState roundtrip", () => {
 					url: "https://github.com/org/repo",
 					shortName: "org/repo",
 					packagesRoot: "packages",
-					packages: [{ name: "pkg-a", description: "Test", version: "1.0.0", path: "/path/pkg-a", isPiPackage: true }],
+					packages: [
+						{ name: "pkg-a", description: "Test", version: "1.0.0", path: "/path/pkg-a", isPiPackage: true },
+					],
 					lastUpdated: "2025-01-01T00:00:00Z",
 					rootPath: "/git/org/repo",
 				},
@@ -253,7 +261,9 @@ describe("crash safety", () => {
 				url: "https://github.com/org/repo",
 				shortName: "org/repo",
 				packagesRoot: "packages",
-				packages: [{ name: "pkg-a", description: "Test", version: "1.0.0", path: "/path/pkg-a", isPiPackage: true }],
+				packages: [
+					{ name: "pkg-a", description: "Test", version: "1.0.0", path: "/path/pkg-a", isPiPackage: true },
+				],
 				lastUpdated: "2025-01-01T00:00:00Z",
 				rootPath: "/git/org/repo",
 			},

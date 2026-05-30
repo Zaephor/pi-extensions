@@ -198,7 +198,9 @@ describe("pi-monorepo-registry integration", () => {
 		});
 
 		it("removes a source and list reflects the removal", async () => {
-			const fixture = await createFixtureMonorepo("e2e-remove", [{ name: "rm-pkg", piExtensions: ["./src/index.ts"] }]);
+			const fixture = await createFixtureMonorepo("e2e-remove", [
+				{ name: "rm-pkg", piExtensions: ["./src/index.ts"] },
+			]);
 			fixtures.push(fixture);
 
 			const mod = await import("../src/index.js");

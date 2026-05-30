@@ -115,7 +115,9 @@ describe("CLI e2e: Event parsing", () => {
 
 describe("CLI e2e: Assertion helpers", () => {
 	test("assertCommandHandled passes when events have no agent_start and stderr is clean", () => {
-		const events = parseEvents([JSON.stringify({ type: "session" }), JSON.stringify({ type: "turn_end" })].join("\n"));
+		const events = parseEvents(
+			[JSON.stringify({ type: "session" }), JSON.stringify({ type: "turn_end" })].join("\n"),
+		);
 		expect(() => assertCommandHandled(events, "")).not.toThrow();
 	});
 

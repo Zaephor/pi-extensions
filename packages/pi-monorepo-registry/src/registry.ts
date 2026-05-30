@@ -31,7 +31,11 @@ export interface RegistryEvent {
  *   const { source, events } = await registry.addSource("https://github.com/example/monorepo", "packages");
  */
 export class MonorepoRegistry {
-	constructor(private state: RegistryState) {}
+	private readonly state: RegistryState;
+
+	constructor(state: RegistryState) {
+		this.state = state;
+	}
 
 	/** Get current registry state (immutable snapshot). */
 	getState(): Readonly<RegistryState> {
@@ -181,7 +185,9 @@ export class MonorepoRegistry {
 			try {
 				packages = await discoverPackages(root, source.packagesRoot);
 			} catch (err) {
-				throw new Error(`Failed to discover packages in ${root}: ${err instanceof Error ? err.message : String(err)}`);
+				throw new Error(
+					`Failed to discover packages in ${root}: ${err instanceof Error ? err.message : String(err)}`,
+				);
 			}
 
 			source.packages = packages;

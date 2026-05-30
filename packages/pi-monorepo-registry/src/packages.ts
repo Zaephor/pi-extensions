@@ -151,7 +151,11 @@ export interface UpdateOptions {
  *   const events = await mgr.installTarball("pi-template", opts);
  */
 export class PackageManager {
-	constructor(private state: RegistryState) {}
+	private readonly state: RegistryState;
+
+	constructor(state: RegistryState) {
+		this.state = state;
+	}
 
 	/** Get current state (immutable snapshot). */
 	getState(): Readonly<RegistryState> {

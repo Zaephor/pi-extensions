@@ -223,7 +223,9 @@ describe("MonorepoRegistry", () => {
 		});
 
 		it("re-discovers packages for a specific source", async () => {
-			fixture = await createFixtureMonorepo("reg-update", [{ name: "pkg-refresh", piExtensions: ["./src/index.ts"] }]);
+			fixture = await createFixtureMonorepo("reg-update", [
+				{ name: "pkg-refresh", piExtensions: ["./src/index.ts"] },
+			]);
 
 			const registry = new MonorepoRegistry({
 				sources: [{ url: fixture.rootDir, packagesRoot: "packages", packages: [], lastUpdated: "" }],

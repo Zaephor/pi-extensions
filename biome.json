@@ -11,13 +11,16 @@
 			},
 			"suspicious": {
 				"noExplicitAny": "off",
+				"noControlCharactersInRegex": "off",
 				"noEmptyInterface": "off"
 			}
 		}
 	},
 	"formatter": {
 		"enabled": true,
+		"formatWithErrors": false,
 		"indentStyle": "tab",
+		"indentWidth": 3,
 		"lineWidth": 120
 	},
 	"files": {

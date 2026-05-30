@@ -322,7 +322,9 @@ export function resolveSourceRoot(url: string): { rootPath: string; cloned: bool
 					stdio: ["pipe", "pipe", "pipe"],
 				});
 			} catch (cloneErr) {
-				throw new Error(`Failed to clone ${url}: ${cloneErr instanceof Error ? cloneErr.message : String(cloneErr)}`);
+				throw new Error(
+					`Failed to clone ${url}: ${cloneErr instanceof Error ? cloneErr.message : String(cloneErr)}`,
+				);
 			}
 		}
 	} else {

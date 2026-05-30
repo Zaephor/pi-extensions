@@ -117,7 +117,9 @@ export async function withAgentDir<T>(agentDir: string, fn: () => Promise<T>): P
 // ---------------------------------------------------------------------------
 /** Load extensions via pi SDK from an agent dir (discovers from extensions/). */
 export async function loadViaPi(agentDir: string) {
-	const { createAgentSession, DefaultResourceLoader, SessionManager } = await import("@earendil-works/pi-coding-agent");
+	const { createAgentSession, DefaultResourceLoader, SessionManager } = await import(
+		"@earendil-works/pi-coding-agent"
+	);
 	const loader = new DefaultResourceLoader({
 		cwd: process.cwd(),
 		agentDir,
