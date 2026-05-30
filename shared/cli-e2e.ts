@@ -1,13 +1,14 @@
 /**
- * CLI e2e test helper for pi/gsd binary testing.
+ * CLI e2e test helper for pi binary testing.
  *
- * Discovers binaries, spawns them with extension flags, captures JSON event
- * streams, and provides assertion helpers for command routing verification.
+ * Discovers the pi binary, spawns it with extension flags, captures JSON
+ * event streams, and provides assertion helpers for command routing
+ * verification.
  *
  * @module shared/cli-e2e
  */
 
-import { execSync, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -92,22 +93,6 @@ export function discoverPiBinary(): string | null {
 	}
 
 	return null;
-}
-
-/**
- * Locate the `gsd` binary on the system PATH.
- *
- * Uses `which` (POSIX) or `where` (Windows) to resolve the binary. Returns the
- * absolute path string, or `null` when `gsd` is not installed.
- */
-export function discoverGsdBinary(): string | null {
-	const cmd = process.platform === "win32" ? "where gsd" : "which gsd";
-	try {
-		const result = execSync(cmd, { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
-		return result.split(/\r?\n/)[0] || null;
-	} catch {
-		return null;
-	}
 }
 
 // ---------------------------------------------------------------------------
@@ -205,7 +190,7 @@ export function parseEvents(rawStdout: string): CliEvent[] {
 // ---------------------------------------------------------------------------
 
 /** Patterns that indicate an extension failed to load. */
-const LOAD_ERROR_PATTERNS = [/\[gsd\]\s+Extension load error/i, /Failed to load extension/i, /extension load.*error/i];
+const LOAD_ERROR_PATTERNS = [/Failed to load extension/i, /extension load.*error/i];
 
 /**
  * Check stderr for extension load errors.
@@ -250,18 +235,17 @@ export function assertCommandHandled(events: CliEvent[], stderr: string): void {
  * Create a self-contained vitest test function that verifies a slash command
  * is handled by an extension without LLM fallthrough.
  *
- * The returned function discovers the binary, spawns the CLI with the given
- * command, and asserts the result. If the binary is not found, the test is
- * marked as skipped.
+ * The returned function discovers the pi binary, spawns the CLI with the
+ * given command, and asserts the result. If the binary is not found, the
+ * test is marked as skipped.
  *
- * @param binary   `"pi"` or `"gsd"` — determines which discovery function is used.
  * @param extensionPath Absolute path to the extension.
  * @param command  Slash command string (e.g. `"/greet"`).
  * @returns A vitest-compatible test function.
  */
-export function createCommandHandledTest(binary: string, extensionPath: string, command: string): () => Promise<void> {
+export function createCommandHandledTest(extensionPath: string, command: string): () => Promise<void> {
 	return async function (this: { skip: () => void }) {
-		const binaryPath = binary === "gsd" ? discoverGsdBinary() : discoverPiBinary();
+		const binaryPath = discoverPiBinary();
 
 		if (!binaryPath) {
 			this.skip();

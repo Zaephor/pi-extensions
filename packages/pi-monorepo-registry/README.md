@@ -1,6 +1,6 @@
 # pi-monorepo-registry
 
-A pure package manager for [pi](https://github.com/earendil-works/pi) extensions. Register monorepo sources, discover pi-compatible packages, and install them so pi/gsd's native extension loader can find them.
+A pure package manager for [pi](https://github.com/earendil-works/pi) extensions. Register monorepo sources, discover pi-compatible packages, and install them so pi's native extension loader can find them.
 
 This is **not** a runtime or plugin loader — it manages package registration in `settings.json` and creates symlinks or extracts tarballs so that pi's built-in extension system discovers and loads them.
 
@@ -134,25 +134,20 @@ Shows all installed packages with their activation mode, source, install date, a
 | **Git** | `--git` | Clone source repo + symlink | Tracking upstream without modifying |
 | **Tarball** | *(default)* | Download GitHub release tarball | Production use — reproducible, no git required |
 
-All three modes register the extension in `settings.json` so pi/gsd discovers it on the next `/reload`.
+All three modes register the extension in `settings.json` so pi discovers it on the next `/reload`.
 
-## Agent Isolation
+## Layout
 
-State and extensions are stored per-agent — there is no cross-contamination:
+State and extensions live under the pi agent dir:
 
 ```
-~/.pi/monorepo/          ← pi agent
+~/.pi/monorepo/          ← resolved via pi SDK getAgentDir()
 ├── extensions/          ← installed packages
 ├── git/                 ← cloned source repos
 └── state.json           ← registry + install state
-
-~/.gsd/monorepo/         ← gsd agent (same layout)
-├── extensions/
-├── git/
-└── state.json
 ```
 
-The agent directory is resolved at runtime via the pi SDK's `getAgentDir()` — pi uses `~/.pi/`, gsd uses `~/.gsd/`. Each agent maintains its own independent registry and installed packages.
+The path is computed via the pi SDK's `getAgentDir()` at runtime, so it honours `PI_CODING_AGENT_DIR` overrides for testing.
 
 ## Package Discovery
 
@@ -220,7 +215,7 @@ The test suite has four tiers plus cross-runtime, per-slice, and regression test
 | Integration | `test/integration.test.ts` | Full command registration and handler execution |
 | Package shape | `test/package-shape.test.ts` | `package.json` has required pi manifest fields, correct file structure |
 | SDK e2e | `test/sdk-e2e.test.ts` | Full pi runtime loads the extension via `SessionManager` |
-| Cross-runtime e2e | `test/cross-runtime-e2e.test.ts` | Extension loads correctly under both pi and gsd SDK runtimes |
+| Runtime e2e | `test/cross-runtime-e2e.test.ts` | Extension loads correctly under the pi SDK runtime |
 | Slice tests | `test/s02-*.test.ts` | PackageManager install/remove/update, tarball download and extraction |
 | Git integration | `test/git-integration.test.ts` | SSH/HTTPS URL normalization, `isSelfUrl` against the real workspace remote, local-path symlink resolution, version refresh from disk |
 | Stale clone regression | `test/stale-clone.test.ts` | Repros that `git pull --ff-only` fails on diverged shallow clones while `fetch + reset` succeeds |

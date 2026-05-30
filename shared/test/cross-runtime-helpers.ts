@@ -1,11 +1,9 @@
 /**
- * Shared helpers for cross-runtime e2e tests.
+ * Shared helpers for e2e tests against the pi runtime.
  *
  * Architecture:
- *   - pi-monorepo-registry is installed natively by pi/gsd (root pi.extensions manifest)
- *   - All other packages are installed via /monorepo-install through the registry
- *
- * GSD tests are skipped unless gsd-pi is resolvable.
+ *   - pi-monorepo-registry is installed natively by pi (root pi.extensions manifest).
+ *   - All other packages are installed via /monorepo-package install through the registry.
  */
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import os from "node:os";
@@ -20,20 +18,6 @@ function resolveMonorepoPackagePath(pkg: string, subpath: string): string {
 	const monorepoRoot = path.resolve(thisDir, "../..");
 	return path.join(monorepoRoot, "packages", pkg, subpath);
 }
-
-// ---------------------------------------------------------------------------
-// GSD SDK resolution
-// ---------------------------------------------------------------------------
-let gsdApi: any = null;
-try {
-	gsdApi = await import("@gsd/pi-coding-agent");
-} catch {
-	try {
-		gsdApi = await import("gsd-pi/packages/pi-coding-agent/dist/index.js");
-	} catch {}
-}
-export const gsdAvailable = gsdApi !== null;
-export { gsdApi };
 
 // ---------------------------------------------------------------------------
 // Temp dir lifecycle
@@ -129,31 +113,11 @@ export async function withAgentDir<T>(agentDir: string, fn: () => Promise<T>): P
 }
 
 // ---------------------------------------------------------------------------
-// SDK loaders
+// SDK loader
 // ---------------------------------------------------------------------------
 /** Load extensions via pi SDK from an agent dir (discovers from extensions/). */
 export async function loadViaPi(agentDir: string) {
 	const { createAgentSession, DefaultResourceLoader, SessionManager } = await import("@mariozechner/pi-coding-agent");
-	const loader = new DefaultResourceLoader({
-		cwd: process.cwd(),
-		agentDir,
-		noExtensions: false,
-		noSkills: true,
-		noPromptTemplates: true,
-		noThemes: true,
-		noContextFiles: true,
-	});
-	await loader.reload();
-	return createAgentSession({
-		resourceLoader: loader,
-		sessionManager: SessionManager.inMemory(),
-		cwd: process.cwd(),
-	});
-}
-
-/** Load extensions via gsd SDK from an agent dir. */
-export async function loadViaGsd(agentDir: string) {
-	const { createAgentSession, DefaultResourceLoader, SessionManager } = gsdApi!;
 	const loader = new DefaultResourceLoader({
 		cwd: process.cwd(),
 		agentDir,

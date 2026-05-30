@@ -1,6 +1,6 @@
 /**
  * Tests for shared/cli-e2e.ts — binary discovery, event parsing, assertion
- * helpers, and integration tests that spawn real pi/gsd processes.
+ * helpers, and integration tests that spawn the real pi process.
  *
  * Run with: npm run test:cli-e2e
  */
@@ -8,14 +8,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import {
-	assertCommandHandled,
-	assertNoLoadErrors,
-	discoverGsdBinary,
-	discoverPiBinary,
-	parseEvents,
-	spawnCli,
-} from "../cli-e2e.js";
+import { assertCommandHandled, assertNoLoadErrors, discoverPiBinary, parseEvents, spawnCli } from "../cli-e2e.js";
 
 // ---------------------------------------------------------------------------
 // Fixture data — realistic event stream matching pi/gsd JSON output
@@ -55,28 +48,6 @@ describe("CLI e2e: Binary discovery", () => {
 		vi.spyOn(fs, "existsSync").mockReturnValue(false);
 		const result = discoverPiBinary();
 		expect(result).toBeNull();
-	});
-
-	test("discoverGsdBinary returns a path when gsd is on PATH", () => {
-		const result = discoverGsdBinary();
-		// If gsd is installed, verify it returns a valid path.
-		// If not installed, null is correct — this branch still validates the function.
-		if (result !== null) {
-			expect(result.length).toBeGreaterThan(0);
-			expect(result).toMatch(/gsd$/);
-		}
-		// Always passes — tests real environment behavior for both outcomes.
-	});
-
-	test("discoverGsdBinary returns null when gsd is not on PATH", () => {
-		const originalPath = process.env.PATH;
-		process.env.PATH = "/nonexistent/empty/path";
-		try {
-			const result = discoverGsdBinary();
-			expect(result).toBeNull();
-		} finally {
-			process.env.PATH = originalPath;
-		}
 	});
 });
 
@@ -118,7 +89,7 @@ describe("CLI e2e: Event parsing", () => {
 	test("parseEvents skips non-JSON lines (blank lines, banners, errors)", () => {
 		const input = [
 			"", // blank line
-			"[gsd] Extension load error: something broke", // non-JSON banner
+			"Extension load error: something broke", // non-JSON banner
 			JSON.stringify({ type: "session", id: "s1" }), // valid JSON event
 			"not json at all", // random text
 			"  ", // whitespace-only line
@@ -161,7 +132,7 @@ describe("CLI e2e: Assertion helpers", () => {
 
 	test("assertCommandHandled throws when stderr contains extension load error", () => {
 		const events = parseEvents(JSON.stringify({ type: "session" }));
-		expect(() => assertCommandHandled(events, "[gsd] Extension load error: boom")).toThrow(/Extension failed to load/);
+		expect(() => assertCommandHandled(events, "Failed to load extension: boom")).toThrow(/Extension failed to load/);
 	});
 
 	test("assertNoLoadErrors returns true for clean stderr", () => {
@@ -170,7 +141,6 @@ describe("CLI e2e: Assertion helpers", () => {
 	});
 
 	test("assertNoLoadErrors returns false for stderr containing load error patterns", () => {
-		expect(assertNoLoadErrors("[gsd] Extension load error: something broke")).toBe(false);
 		expect(assertNoLoadErrors("Failed to load extension: bad path")).toBe(false);
 		expect(assertNoLoadErrors("extension load error: timeout")).toBe(false);
 	});
@@ -183,7 +153,6 @@ describe("CLI e2e: Assertion helpers", () => {
 describe("CLI e2e: Integration tests", () => {
 	// Compute binary availability synchronously at describe evaluation time.
 	const piBinary = discoverPiBinary();
-	const gsdBinary = discoverGsdBinary();
 
 	test.skipIf(!piBinary)(
 		"pi + /greet: command handled without LLM fallthrough",
@@ -201,39 +170,14 @@ describe("CLI e2e: Integration tests", () => {
 		20_000,
 	);
 
-	test("gsd + /greet: command handled without LLM fallthrough", async (ctx) => {
-		if (!gsdBinary) {
-			ctx.skip();
-			return;
-		}
-
-		const result = await spawnCli({
-			binary: gsdBinary,
-			extensionPath: EXTENSION_PATH,
-			message: "/greet world",
-			timeout: 20_000,
-		});
-
-		// Skip if extension failed to load (environment/version mismatch)
-		if (!assertNoLoadErrors(result.stderr)) {
-			ctx.skip();
-			return;
-		}
-
-		assertCommandHandled(result.events, result.stderr);
-		expect(result.timedOut).toBe(false);
-	}, 20_000);
-
 	test("unrecognized command falls through to LLM (agent_start present)", async (ctx) => {
-		// Use whichever binary is available; prefer gsd, fall back to pi.
-		const binary = gsdBinary ?? piBinary;
-		if (!binary) {
+		if (!piBinary) {
 			ctx.skip();
 			return;
 		}
 
 		const result = await spawnCli({
-			binary,
+			binary: piBinary,
 			extensionPath: EXTENSION_PATH,
 			message: "/nonexistent-command-test",
 			timeout: 20_000,

@@ -57,7 +57,7 @@ This runs type-checking, linting, and the full test suite across all packages. I
    - The `"pi-package"` keyword is required for pi to recognize this as an extension.
    - The `"pi"."extensions"` array tells pi which files to load.
    - pi core packages are **peer dependencies** — pi bundles them at runtime and extensions must share the same instances (D002).
-   - The `@mariozechner/pi-*` scope is the **extension-loader contract**, not just a npm coordinate. Both the active pi fork ([earendil-works/pi](https://github.com/earendil-works/pi), published as `@earendil-works/pi-*`) and the open-gsd fork (`gsd-pi`, published as `@opengsd/gsd-pi`) alias `@mariozechner/pi-*` to their bundled internals at extension load. Importing from any other scope breaks cross-runtime loading. The `@mariozechner` packages are still on npm at v0.73.1 — that is the right `devDependencies` pin for local type-checking.
+   - `@mariozechner/pi-*` is the canonical import scope: it's the back-compat alias the active pi runtime ([earendil-works/pi](https://github.com/earendil-works/pi), published as `@earendil-works/pi-coding-agent`) resolves at extension load. We pin `devDependencies` to the latest `@mariozechner/pi-*` release on npm for local type-checking; the running pi binary supplies the runtime instances.
 
 3. **Create `src/index.ts`** with a default export function:
    ```ts
