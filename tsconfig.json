@@ -5,6 +5,12 @@
 			"path": "packages/pi-template"
 		},
 		{
+			"path": "packages/pi-template-stateful"
+		},
+		{
+			"path": "packages/pi-template-hook"
+		},
+		{
 			"path": "packages/pi-monorepo-registry"
 		},
 		{
