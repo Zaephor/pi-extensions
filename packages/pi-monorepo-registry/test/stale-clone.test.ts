@@ -70,6 +70,10 @@ describe("stale clone update", () => {
 		const installed = join(tmpdir(), `stale-inst-${Date.now()}`);
 		tempDirs.push(installed);
 		execSync(`git clone "${bare}" "${installed}"`, { stdio: "pipe" });
+		// Set identity on this clone too — it commits a local change below, and
+		// CI runners have no global git identity configured.
+		git(installed, 'git config user.email "t@t.com"');
+		git(installed, 'git config user.name "T"');
 		expect(pkgVersion(installed, "my-ext")).toBe("0.2.2");
 
 		// ── PUSH v0.2.6 ──
