@@ -112,3 +112,23 @@ jobs:
 
       - name: CLI e2e tests
         run: npm run test:cli-e2e
+
+  registry-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      # Tiers 1+2 run on every push/PR. Tier 3 (network) stays a visible skip
+      # because RUN_NETWORK_E2E is unset here. requirePiBinary() hard-fails the
+      # job if node_modules/.bin/pi is missing (no silent skip).
+      - name: Registry full CLI loop (tiers 1+2; tier 3 network-gated off)
+        env:
+          RUN_REGISTRY_CLI_E2E: "1"
+        run: npx vitest run --reporter=verbose packages/pi-monorepo-registry/test/cli-loop-e2e.test.ts shared/test/registry-e2e.test.ts
