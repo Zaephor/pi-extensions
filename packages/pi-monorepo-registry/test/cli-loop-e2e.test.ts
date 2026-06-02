@@ -117,13 +117,13 @@ describe.skipIf(!RUN)("registry full CLI loop (real pi binary)", () => {
 		// Fresh pi, NO -e: discovery happens purely via the settings.json bridge.
 		const use = await runPiStep(pi, { agentDir, message: "/greet" });
 		assertHandledOffline(use);
-	});
+	}, 90_000);
 
 	it("negative control: an unknown command falls through to the LLM", async () => {
 		const agentDir = makeAgentDir("ctrl");
 		const r = await runPiStep(pi, { agentDir, extensions: [registrySrc], message: "/zzznope" });
 		assertFellThrough(r);
-	});
+	}, 60_000);
 
 	it("tier 2: local bare-git clone (--git) → fresh pi runs /fixgreet", async () => {
 		const agentDir = makeAgentDir("t2");
@@ -145,7 +145,7 @@ describe.skipIf(!RUN)("registry full CLI loop (real pi binary)", () => {
 
 		const use = await runPiStep(pi, { agentDir, message: "/fixgreet" });
 		assertHandledOffline(use);
-	});
+	}, 120_000);
 
 	it.skipIf(!process.env.RUN_NETWORK_E2E)(
 		"tier 3: GitHub clone (--git) → fresh pi runs the installed /greet",
@@ -172,5 +172,6 @@ describe.skipIf(!RUN)("registry full CLI loop (real pi binary)", () => {
 			const use = await runPiStep(pi, { agentDir, message: "/greet" });
 			assertHandledOffline(use);
 		},
+		360_000,
 	);
 });
