@@ -5,7 +5,8 @@
  * command, asserting it is handled with no LLM fallthrough. Gated behind
  * RUN_REGISTRY_CLI_E2E so the heavy spawns run only in the dedicated CI job.
  */
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { execSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -31,6 +32,54 @@ function makeAgentDir(label: string): string {
 	const agentDir = path.join(mkTemp(label), ".pi", "agent");
 	mkdirSync(agentDir, { recursive: true });
 	return agentDir;
+}
+
+function git(dir: string, cmd: string): void {
+	execSync(cmd, { cwd: dir, stdio: "pipe" });
+}
+
+/**
+ * Build a bare git repo containing packages/fixture-ext, whose extension
+ * registers a /fixgreet command. Returns a file:// URL — the file:// scheme
+ * forces the registry's git CLONE path (a bare fs path would be treated as a
+ * local source and skip cloning).
+ */
+function buildBareFixtureRepo(): string {
+	const bare = path.join(mkTemp("bare"), "repo.git");
+	mkdirSync(bare, { recursive: true });
+	git(bare, "git init --bare");
+	git(bare, "git symbolic-ref HEAD refs/heads/main");
+
+	const work = mkTemp("work");
+	git(work, `git clone "${bare}" .`);
+	git(work, 'git config user.email "t@t.com"');
+	git(work, 'git config user.name "T"');
+
+	const pkgSrc = path.join(work, "packages", "fixture-ext", "src");
+	mkdirSync(pkgSrc, { recursive: true });
+	writeFileSync(
+		path.join(work, "packages", "fixture-ext", "package.json"),
+		JSON.stringify({ name: "fixture-ext", version: "1.0.0", type: "module", pi: { extensions: ["./src/index.ts"] } }),
+	);
+	writeFileSync(
+		path.join(pkgSrc, "index.ts"),
+		[
+			"export default async function (pi: any) {",
+			'	pi.registerCommand("fixgreet", {',
+			'		description: "fixture command",',
+			"		handler: async (_args: string, ctx: any) => {",
+			'			ctx.ui.notify("fixture ok", "info");',
+			"		},",
+			"	});",
+			"}",
+			"",
+		].join("\n"),
+	);
+
+	git(work, "git add -A");
+	git(work, 'git commit -m "fixture-ext v1.0.0"');
+	git(work, "git push -u origin main");
+	return `file://${bare}`;
 }
 
 describe.skipIf(!RUN)("registry full CLI loop (real pi binary)", () => {
@@ -74,5 +123,27 @@ describe.skipIf(!RUN)("registry full CLI loop (real pi binary)", () => {
 		const agentDir = makeAgentDir("ctrl");
 		const r = await runPiStep(pi, { agentDir, extensions: [registrySrc], message: "/zzznope" });
 		assertFellThrough(r);
+	});
+
+	it("tier 2: local bare-git clone (--git) → fresh pi runs /fixgreet", async () => {
+		const agentDir = makeAgentDir("t2");
+		const sourceUrl = buildBareFixtureRepo();
+
+		const add = await runPiStep(pi, {
+			agentDir,
+			extensions: [registrySrc],
+			message: `/monorepo-registry add ${sourceUrl} packages`,
+		});
+		assertHandledOffline(add);
+
+		const install = await runPiStep(pi, {
+			agentDir,
+			extensions: [registrySrc],
+			message: "/monorepo-package install fixture-ext --git",
+		});
+		assertHandledOffline(install);
+
+		const use = await runPiStep(pi, { agentDir, message: "/fixgreet" });
+		assertHandledOffline(use);
 	});
 });
