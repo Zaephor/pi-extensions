@@ -132,8 +132,9 @@ function nearestPackageRoot(startFile: string): string {
 
 /** Package root that provides the SDK the in-process tests import. */
 export function sdkPackageRoot(): string {
-	// Uses the import-meta-resolve ponyfill for ESM resolution (the package only
-	// exposes an "import" condition, so createRequire().resolve would throw).
+	// ESM resolution, resolved independently of the binary so the coherence
+	// tests prove bin == SDK. The import-meta-resolve ponyfill is used because
+	// vitest's SSR transform does not provide a working import.meta.resolve.
 	return nearestPackageRoot(fileURLToPath(importMetaResolve("@earendil-works/pi-coding-agent", import.meta.url)));
 }
 

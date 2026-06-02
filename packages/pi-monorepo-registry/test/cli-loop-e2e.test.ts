@@ -89,6 +89,8 @@ describe.skipIf(!RUN)("registry full CLI loop (real pi binary)", () => {
 		pi = requirePiBinary(); // hard-fail in the dedicated job if the binary is missing
 	});
 
+	// Inside the gated describe on purpose: tempDirs is only populated by the
+	// test bodies below, so when the suite is skipped there is nothing to clean.
 	afterAll(() => {
 		for (const dir of tempDirs.splice(0)) {
 			try {
@@ -117,7 +119,9 @@ describe.skipIf(!RUN)("registry full CLI loop (real pi binary)", () => {
 		// Fresh pi, NO -e: discovery happens purely via the settings.json bridge.
 		const use = await runPiStep(pi, { agentDir, message: "/greet" });
 		assertHandledOffline(use);
-	}, 90_000);
+		// Vitest ceiling above the sum of the steps' runPiStep timeouts (3×60s),
+		// so a hung step is killed by the harness (descriptive error) first.
+	}, 200_000);
 
 	it("negative control: an unknown command falls through to the LLM", async () => {
 		const agentDir = makeAgentDir("ctrl");
@@ -145,7 +149,7 @@ describe.skipIf(!RUN)("registry full CLI loop (real pi binary)", () => {
 
 		const use = await runPiStep(pi, { agentDir, message: "/fixgreet" });
 		assertHandledOffline(use);
-	}, 120_000);
+	}, 200_000);
 
 	it.skipIf(!process.env.RUN_NETWORK_E2E)(
 		"tier 3: GitHub clone (--git) → fresh pi runs the installed /greet",
