@@ -146,4 +146,31 @@ describe.skipIf(!RUN)("registry full CLI loop (real pi binary)", () => {
 		const use = await runPiStep(pi, { agentDir, message: "/fixgreet" });
 		assertHandledOffline(use);
 	});
+
+	it.skipIf(!process.env.RUN_NETWORK_E2E)(
+		"tier 3: GitHub clone (--git) → fresh pi runs the installed /greet",
+		async () => {
+			const agentDir = makeAgentDir("t3");
+			const sourceUrl = "https://github.com/Zaephor/pi-extensions.git";
+
+			const add = await runPiStep(pi, {
+				agentDir,
+				extensions: [registrySrc],
+				message: `/monorepo-registry add ${sourceUrl} packages`,
+				timeout: 120_000,
+			});
+			assertHandledOffline(add);
+
+			const install = await runPiStep(pi, {
+				agentDir,
+				extensions: [registrySrc],
+				message: "/monorepo-package install pi-template --git",
+				timeout: 120_000,
+			});
+			assertHandledOffline(install);
+
+			const use = await runPiStep(pi, { agentDir, message: "/greet" });
+			assertHandledOffline(use);
+		},
+	);
 });
