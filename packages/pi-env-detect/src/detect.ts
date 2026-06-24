@@ -20,6 +20,13 @@ function needsTooling(scope: Scope): boolean {
 	return scope === "tooling" || scope === "all";
 }
 
+/**
+ * Returns the cached EnvReport BY REFERENCE — callers must not mutate it.
+ * The lazy tooling probe mutates the cached object in place, so a report
+ * obtained before a tooling/all scope was first requested will gain a
+ * `tooling` field afterward. Consumers should read what they need immediately
+ * rather than retaining the reference and assuming `tooling` stays absent.
+ */
 export function detect(sys: SystemAccess, scope: Scope): EnvReport {
 	if (!cache) {
 		cache = {
