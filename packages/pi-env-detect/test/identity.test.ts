@@ -57,5 +57,6 @@ describe("probeIdentity", () => {
 		});
 		const r = probeIdentity(sys);
 		expect(r.type).toBe("container");
+		expect(r.container).toBe("docker");
 	});
 });

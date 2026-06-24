@@ -37,13 +37,11 @@ function detectContainer(sys: SystemAccess, sources: string[]): string | undefin
 /** Detect a hypervisor/VM vendor from systemd-detect-virt, then DMI, then cpuinfo. */
 function detectHypervisor(sys: SystemAccess, sources: string[]): string | undefined {
 	const out = sys.exec("systemd-detect-virt", [])?.trim();
-	if (out) {
-		sources.push("systemd-detect-virt");
-		if (out !== "none") {
-			// systemd-detect-virt reports container types too; ignore those here.
-			if (!["docker", "podman", "lxc", "lxc-libvirt", "systemd-nspawn"].includes(out)) {
-				return out;
-			}
+	if (out && out !== "none") {
+		// systemd-detect-virt reports container types too; ignore those here.
+		if (!["docker", "podman", "lxc", "lxc-libvirt", "systemd-nspawn"].includes(out)) {
+			sources.push("systemd-detect-virt");
+			return out;
 		}
 	}
 	const vendor = (sys.readFile("/sys/class/dmi/id/sys_vendor") ?? "").trim().toLowerCase();
@@ -76,6 +74,11 @@ export function probeIdentity(sys: SystemAccess): IdentityResult {
 	const hypervisor = detectHypervisor(sys, sources);
 	const k8s = sys.env("KUBERNETES_SERVICE_HOST") !== undefined || sys.exists("/var/run/secrets/kubernetes.io");
 	if (k8s) sources.push("k8s");
+
+	// A clean "none" from systemd-detect-virt is positive evidence of baremetal.
+	if (!container && !hypervisor && sys.exec("systemd-detect-virt", [])?.trim() === "none") {
+		sources.push("systemd-detect-virt");
+	}
 
 	const layers: string[] = [];
 	if (hypervisor) layers.push(hypervisor);
