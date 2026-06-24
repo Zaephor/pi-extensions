@@ -1,111 +1,48 @@
 # pi-env-detect
 
-A minimal pi extension demonstrating tool, command, and event handler registration.
+Makes the pi agent aware of its **execution environment** and what it can spawn.
 
-## What It Does
+On every turn it appends a compact summary to the system prompt — whether the
+agent is on baremetal, in a VM, a container, or a nested combination, and
+whether it can launch VMs (`/dev/kvm`, nested virt) or containers (docker /
+podman sockets). For depth on demand it registers a `detect_environment` tool.
 
-pi-env-detect registers three things with the pi agent runtime:
+## Why
 
-- **`hello` tool** — A tool that greets someone by name. Tools are invoked by the LLM during a session when it decides the tool is relevant.
-- **`/greet` command** — A slash command that prints a greeting to the UI. Commands are triggered explicitly by the user typing `/greet [name]` in the session.
-- **`session_start` handler** — An event listener that fires when a session begins, notifying the user that the extension is active.
+Agents often run inside a container on a sandbox VM with nested virtualization
+enabled — free to launch VMs and containers — but don't *know* it, so they have
+to be reminded. This extension removes the reminding.
 
-## Installation
+## Scopes
 
-```sh
-pi install git:github.com/Zaephor/pi-extensions
-/monorepo-install pi-env-detect
-/reload
-```
+- **identity** — baremetal / VM / container / nested, hypervisor + runtime, k8s.
+- **capability** — HW virt (`vmx`/`svm`), `/dev/kvm`, nested virt, docker/podman
+  sockets, uid 0, notable capabilities, seccomp.
+- **tooling** — presence of a fixed allowlist of spawn tools on PATH
+  (`docker, podman, qemu-system-*, libvirtd, virsh, lxc, lxd, kubectl, vagrant,
+  systemd-nspawn`). On-demand only; never injected.
 
-> ```
+Identity + capability are auto-injected. Tooling is tool-only — request it with
+`detect_environment(scope: "tooling" | "all")`.
 
-## Usage
-
-### hello tool
-
-The `hello` tool is invoked automatically by the LLM when it decides a greeting is appropriate:
-
-```
-User: Say hello to Alice
-Agent: [calls hello tool with { name: "Alice" }]
-       → "Hello, Alice!"
-```
-
-### /greet command
-
-Type directly in the pi prompt:
+## Tool
 
 ```
-/greet Bob    → Hello, Bob! 👋
-/greet        → Hello, world! 👋
+detect_environment(scope?: "identity" | "capability" | "tooling" | "all")  // default "all"
 ```
 
-### session_start notification
+Returns a prose summary plus structured `details` (the full `EnvReport`).
 
-When a session begins, the extension prints:
+## Command
 
-```
-pi-env-detect extension loaded ✅
-```
+`/detect-environment` — print the summary to the UI.
 
-## Development
+## Flag
 
-Clone the monorepo and install dependencies from the root:
+`--env-detect inject` (default) | `tool-only` (no injection, keep the tool) |
+`disabled`.
 
-```sh
-git clone https://github.com/Zaephor/pi-extensions.git
-cd pi-extensions
-npm install
-```
+## Platform
 
-Available scripts in this package:
-
-| Command | Description |
-|---------|-------------|
-| `npm run check` | Type-check with `tsc --noEmit` |
-| `npm test` | Run all tests with Vitest |
-
-From the monorepo root you can also run:
-
-```sh
-npm run typecheck   # type-check all packages
-npm run check       # lint all files with Biome
-npm run test        # run all tests
-npm run check:all   # typecheck + lint + test
-```
-
-## Testing
-
-Run tests from the root or from `packages/pi-env-detect`:
-
-```sh
-npm test
-```
-
-The test suite has five tiers:
-
-| Tier | File | What it verifies |
-|------|------|------------------|
-| Unit | `test/unit.test.ts` | Tool and command handlers in isolation |
-| Integration | `test/integration.test.ts` | Factory function registers all extensions correctly |
-| Package shape | `test/package-shape.test.ts` | `package.json` has required pi manifest fields |
-| SDK e2e | `test/sdk-e2e.test.ts` | Full pi runtime loads the extension via `SessionManager` |
-| Index | `test/index.test.ts` | Re-exports and entry point validation |
-
-## Package Structure
-
-```
-packages/pi-env-detect/
-├── src/
-│   └── index.ts        # Default export: factory function receiving ExtensionAPI
-├── test/
-│   ├── unit.test.ts
-│   ├── integration.test.ts
-│   ├── package-shape.test.ts
-│   ├── sdk-e2e.test.ts
-│   └── index.test.ts
-└── package.json        # pi manifest under "pi.extensions" field
-```
-
-The entry point is `src/index.ts`, which exports a default function. pi loads this file via jiti (no compilation step) and calls it with an `ExtensionAPI` instance. The `"pi-package"` keyword in `package.json` tells pi this is an extension package.
+POSIX / Linux only. Every probe degrades to "unknown" when its source is
+missing — it never throws and never blocks startup.

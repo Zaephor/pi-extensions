@@ -1,6 +1,6 @@
 {
 	"name": "pi-env-detect",
-	"version": "0.3.1",
+	"version": "0.0.0",
 	"type": "module",
 	"keywords": [
 		"pi-package"
