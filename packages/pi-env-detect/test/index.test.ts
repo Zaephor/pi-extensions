@@ -35,6 +35,18 @@ describe("pi-env-detect wiring", () => {
 		expect(result).toBeUndefined();
 	});
 
+	it("suppresses injection but keeps the tool when --env-detect=tool-only", async () => {
+		const { api, events, tools } = createMockAPI({ "--env-detect": "tool-only" });
+		factory(api);
+		const handler = events.get("before_agent_start");
+		const result = await handler?.(
+			{ type: "before_agent_start", prompt: "hi", systemPrompt: "BASE" } as any,
+			{} as any,
+		);
+		expect(result).toBeUndefined();
+		expect(tools.find((t) => t.name === "detect_environment")).toBeDefined();
+	});
+
 	it("the tool returns prose content plus structured details", async () => {
 		const { api, tools } = createMockAPI();
 		factory(api);

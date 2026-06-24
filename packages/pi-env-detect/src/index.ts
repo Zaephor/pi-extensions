@@ -24,9 +24,11 @@ const FLAG_NAME = "--env-detect";
 const DEFAULT_MODE = "inject";
 
 const Params = Type.Object({
-	scope: StringEnum(["identity", "capability", "tooling", "all"] as const, {
-		description: "Which detection scope to report. Defaults to all.",
-	}),
+	scope: Type.Optional(
+		StringEnum(["identity", "capability", "tooling", "all"] as const, {
+			description: "Which detection scope to report. Defaults to all.",
+		}),
+	),
 });
 
 export default function (pi: ExtensionAPI) {
