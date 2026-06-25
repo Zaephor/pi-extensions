@@ -76,4 +76,40 @@ describe("renderInjection", () => {
 		};
 		expect(renderInjection(bare)).toMatch(/bare ?metal/i);
 	});
+
+	it("states container-launch capability when a socket is present", () => {
+		const report = {
+			identity: { type: "container", container: "docker", layers: ["docker"], k8s: false, sources: [] },
+			capability: {
+				hwVirt: false,
+				kvm: false,
+				nestedVirt: false,
+				dockerSocket: true,
+				podmanSocket: false,
+				uid0: false,
+				caps: [],
+				seccomp: false,
+			},
+		} as any;
+		expect(renderInjection(report)).toMatch(/launch containers/i);
+	});
+
+	it("renders seccomp as a restriction caveat, not a privilege", () => {
+		const report = {
+			identity: { type: "baremetal", layers: [], k8s: false, sources: [] },
+			capability: {
+				hwVirt: false,
+				kvm: false,
+				nestedVirt: false,
+				dockerSocket: false,
+				podmanSocket: false,
+				uid0: false,
+				caps: [],
+				seccomp: true,
+			},
+		} as any;
+		const s = renderInjection(report);
+		expect(s).toMatch(/seccomp/i);
+		expect(s).not.toMatch(/Privilege:[^\n]*seccomp/i); // seccomp not inside the Privilege clause
+	});
 });

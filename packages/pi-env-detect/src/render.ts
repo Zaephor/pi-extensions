@@ -22,15 +22,18 @@ function capabilitySentences(cap: CapabilityResult): string[] {
 	else if (cap.hwVirt) out.push("CPU virt extensions are present but `/dev/kvm` is not accessible.");
 	else out.push("No usable hardware virtualization detected.");
 
-	if (cap.dockerSocket) out.push("A docker socket is present.");
-	if (cap.podmanSocket) out.push("A podman socket is present.");
-	if (!cap.dockerSocket && !cap.podmanSocket) out.push("No container runtime socket detected.");
+	if (cap.dockerSocket || cap.podmanSocket) {
+		const which = [cap.dockerSocket && "docker", cap.podmanSocket && "podman"].filter(Boolean).join(" and ");
+		out.push(`A ${which} socket is present — you can launch containers.`);
+	} else {
+		out.push("No container runtime socket detected.");
+	}
 
 	const priv: string[] = [];
 	if (cap.uid0) priv.push("uid 0");
 	if (cap.caps.length) priv.push(cap.caps.join(", "));
-	if (cap.seccomp) priv.push("seccomp-confined");
 	if (priv.length) out.push(`Privilege: ${priv.join("; ")}.`);
+	if (cap.seccomp) out.push("Note: the process is seccomp-confined, which may restrict some spawn-related syscalls.");
 	return out;
 }
 
