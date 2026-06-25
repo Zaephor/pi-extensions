@@ -38,4 +38,12 @@ describe("detect", () => {
 		detect(sys, "tooling");
 		expect(calls.which).toBe(before); // tooling cached
 	});
+
+	it("does not retroactively mutate a previously returned report", () => {
+		const { sys } = makeFakeSystem({ which: { docker: "/usr/bin/docker" } });
+		const first = detect(sys, "capability");
+		expect(first.tooling).toBeUndefined();
+		detect(sys, "all"); // probes tooling now
+		expect(first.tooling).toBeUndefined(); // the earlier reference must NOT have changed
+	});
 });

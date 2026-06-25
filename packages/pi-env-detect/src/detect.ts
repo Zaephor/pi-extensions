@@ -21,11 +21,10 @@ function needsTooling(scope: Scope): boolean {
 }
 
 /**
- * Returns the cached EnvReport BY REFERENCE — callers must not mutate it.
- * The lazy tooling probe mutates the cached object in place, so a report
- * obtained before a tooling/all scope was first requested will gain a
- * `tooling` field afterward. Consumers should read what they need immediately
- * rather than retaining the reference and assuming `tooling` stays absent.
+ * Probe-once: identity+capability are probed on first call and cached for the
+ * process lifetime; tooling is probed lazily at most once. Returns a fresh
+ * shallow copy each call, so a report obtained before tooling existed is never
+ * mutated retroactively.
  */
 export function detect(sys: SystemAccess, scope: Scope): EnvReport {
 	if (!cache) {
@@ -37,5 +36,5 @@ export function detect(sys: SystemAccess, scope: Scope): EnvReport {
 	if (needsTooling(scope) && !cache.tooling) {
 		cache.tooling = probeTooling(sys);
 	}
-	return cache;
+	return { ...cache };
 }
