@@ -11,8 +11,15 @@ describe("pi-env-detect wiring", () => {
 		expect(tool?.promptSnippet).toBeTruthy();
 	});
 
+	it("registers the flag WITHOUT a leading -- (CLI adds it)", () => {
+		const { api, flags } = createMockAPI();
+		factory(api);
+		expect(flags.has("env-detect")).toBe(true);
+		expect(flags.has("--env-detect")).toBe(false);
+	});
+
 	it("injects an identity+capability block via before_agent_start by default", async () => {
-		const { api, events } = createMockAPI({ "--env-detect": "inject" });
+		const { api, events } = createMockAPI({ "env-detect": "inject" });
 		factory(api);
 		const handler = events.get("before_agent_start");
 		expect(handler).toBeDefined();
@@ -25,7 +32,7 @@ describe("pi-env-detect wiring", () => {
 	});
 
 	it("suppresses injection when --env-detect=disabled", async () => {
-		const { api, events } = createMockAPI({ "--env-detect": "disabled" });
+		const { api, events } = createMockAPI({ "env-detect": "disabled" });
 		factory(api);
 		const handler = events.get("before_agent_start");
 		const result = await handler?.(
@@ -36,7 +43,7 @@ describe("pi-env-detect wiring", () => {
 	});
 
 	it("suppresses injection but keeps the tool when --env-detect=tool-only", async () => {
-		const { api, events, tools } = createMockAPI({ "--env-detect": "tool-only" });
+		const { api, events, tools } = createMockAPI({ "env-detect": "tool-only" });
 		factory(api);
 		const handler = events.get("before_agent_start");
 		const result = await handler?.(
@@ -45,6 +52,17 @@ describe("pi-env-detect wiring", () => {
 		);
 		expect(result).toBeUndefined();
 		expect(tools.find((t) => t.name === "detect_environment")).toBeDefined();
+	});
+
+	it("injects for an unrecognized flag value (defaults to inject)", async () => {
+		const { api, events } = createMockAPI({ "env-detect": "garbage" });
+		factory(api);
+		const handler = events.get("before_agent_start");
+		const result = await handler?.(
+			{ type: "before_agent_start", prompt: "hi", systemPrompt: "BASE" } as any,
+			{} as any,
+		);
+		expect((result as any)?.systemPrompt).toContain("BASE");
 	});
 
 	it("the tool returns prose content plus structured details", async () => {

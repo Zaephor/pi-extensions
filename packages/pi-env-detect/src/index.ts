@@ -20,8 +20,14 @@ import { renderInjection, renderSummary } from "./render.js";
 import { realSystem } from "./system.js";
 import type { Scope } from "./types.js";
 
-const FLAG_NAME = "--env-detect";
+const FLAG_NAME = "env-detect";
 const DEFAULT_MODE = "inject";
+const VALID_MODES = ["inject", "tool-only", "disabled"] as const;
+type EnvDetectMode = (typeof VALID_MODES)[number];
+
+function parseMode(raw: unknown): EnvDetectMode {
+	return (VALID_MODES as readonly string[]).includes(raw as string) ? (raw as EnvDetectMode) : DEFAULT_MODE;
+}
 
 const Params = Type.Object({
 	scope: Type.Optional(
@@ -47,9 +53,9 @@ export default function (pi: ExtensionAPI) {
 		name: "detect_environment",
 		label: "Detect environment",
 		description:
-			"Report the execution environment: identity (baremetal/VM/container/nested), spawn capabilities (KVM, nested virt, container sockets, privilege), and—on request—spawn tooling on PATH.",
+			"Report the execution environment before spawning a VM or container: identity (baremetal/VM/container/nested), spawn capabilities (KVM, nested virt, container sockets, privilege), and—when scope includes it—the spawn client binaries on PATH (docker/podman/qemu/…).",
 		promptSnippet:
-			"detect_environment(scope?) — report whether you are in a container/VM/nested env and what you can launch (VMs, containers).",
+			"detect_environment(scope?: 'identity'|'capability'|'tooling'|'all') — default 'all'; reports whether you're in a container/VM/nested env, what you can launch (VMs/containers), and which spawn tools are on PATH.",
 		parameters: Params,
 		async execute(_id, params, _signal, _onUpdate, _ctx) {
 			const scope = (params.scope ?? "all") as Scope;
@@ -62,8 +68,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("before_agent_start", (event, _ctx) => {
-		const mode = pi.getFlag(FLAG_NAME);
-		if (mode === "disabled" || mode === "tool-only") return;
+		if (parseMode(pi.getFlag(FLAG_NAME)) !== "inject") return;
 		const report = detect(sys, "capability"); // identity+capability, no tooling
 		const block = renderInjection(report);
 		return { systemPrompt: `${event.systemPrompt}\n\n${block}` };
