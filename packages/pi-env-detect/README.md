@@ -16,6 +16,8 @@ to be reminded. This extension removes the reminding.
 ## Scopes
 
 - **identity** — baremetal / VM / container / nested, hypervisor + runtime, k8s.
+  Container runtime attribution covers docker, podman (incl. rootless), CRI-O,
+  containerd, lxc, and systemd-nspawn/openvz where detectable.
 - **capability** — HW virt (`vmx`/`svm`), `/dev/kvm`, nested virt, docker/podman
   sockets, uid 0, notable capabilities, seccomp.
 - **tooling** — presence of a fixed allowlist of spawn tools on PATH
@@ -39,10 +41,10 @@ Returns a prose summary plus structured `details` (the full `EnvReport`).
 
 ## Flag
 
-`--env-detect inject` (default) | `tool-only` (no injection, keep the tool) |
-`disabled`.
+`pi --env-detect inject` (default) | `pi --env-detect tool-only` (no injection,
+keep the tool) | `pi --env-detect disabled`.
 
 ## Platform
 
 POSIX / Linux only. Every probe degrades to "unknown" when its source is
-missing — it never throws and never blocks startup.
+missing — it never throws, never blocks startup, and never makes network calls.
