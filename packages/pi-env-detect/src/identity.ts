@@ -1,6 +1,16 @@
 import type { SystemAccess } from "./system.js";
 import type { IdentityResult } from "./types.js";
 
+/** Neutralize externally-sourced labels before they reach the system prompt:
+ * strip control chars (newlines etc.), collapse whitespace, cap length. */
+function sanitizeLabel(raw: string): string {
+	return raw
+		.replace(/[\x00-\x1f\x7f]/g, " ")
+		.replace(/\s+/g, " ")
+		.trim()
+		.slice(0, 32);
+}
+
 /** Container marker files and the runtime each implies. */
 const CONTAINER_MARKERS: Array<[path: string, runtime: string]> = [
 	["/.dockerenv", "docker"],
@@ -37,7 +47,7 @@ function detectContainer(sys: SystemAccess, sources: string[], dvirt: string | u
 	const containerEnv = sys.env("container");
 	if (containerEnv) {
 		sources.push("env:container");
-		return containerEnv;
+		return sanitizeLabel(containerEnv);
 	}
 	const cgroup = sys.readFile("/proc/1/cgroup") ?? sys.readFile("/proc/self/cgroup");
 	if (cgroup) {
@@ -52,7 +62,7 @@ function detectContainer(sys: SystemAccess, sources: string[], dvirt: string | u
 	}
 	if (dvirt && SYSTEMD_CONTAINER_TYPES.includes(dvirt)) {
 		sources.push("systemd-detect-virt");
-		return dvirt;
+		return sanitizeLabel(dvirt);
 	}
 	return undefined;
 }
@@ -63,7 +73,7 @@ function detectHypervisor(sys: SystemAccess, sources: string[], dvirt: string | 
 		// systemd-detect-virt reports container types too; ignore those here.
 		if (!SYSTEMD_CONTAINER_TYPES.includes(dvirt)) {
 			sources.push("systemd-detect-virt");
-			return dvirt;
+			return sanitizeLabel(dvirt);
 		}
 	}
 	const vendor = (sys.readFile("/sys/class/dmi/id/sys_vendor") ?? "").trim().toLowerCase();
