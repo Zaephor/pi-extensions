@@ -7,8 +7,27 @@ const CONTAINER_MARKERS: Array<[path: string, runtime: string]> = [
 	["/run/.containerenv", "podman"],
 ];
 
-/** Detect a container runtime from marker files, env, then cgroup contents. */
-function detectContainer(sys: SystemAccess, sources: string[]): string | undefined {
+/**
+ * Container type names reported by systemd-detect-virt.
+ * Used to (a) exclude them from hypervisor detection and
+ * (b) attribute them as a container when marker/cgroup detection missed.
+ */
+const SYSTEMD_CONTAINER_TYPES = [
+	"docker",
+	"podman",
+	"lxc",
+	"lxc-libvirt",
+	"systemd-nspawn",
+	"openvz",
+	"wsl",
+	"rkt",
+	"proot",
+	"pouch",
+	"container-other",
+];
+
+/** Detect a container runtime from marker files, env, cgroup, then systemd-detect-virt. */
+function detectContainer(sys: SystemAccess, sources: string[], dvirt: string | undefined): string | undefined {
 	for (const [path, runtime] of CONTAINER_MARKERS) {
 		if (sys.exists(path)) {
 			sources.push(path);
@@ -22,26 +41,29 @@ function detectContainer(sys: SystemAccess, sources: string[]): string | undefin
 	}
 	const cgroup = sys.readFile("/proc/1/cgroup") ?? sys.readFile("/proc/self/cgroup");
 	if (cgroup) {
-		if (/kubepods|docker/.test(cgroup)) {
-			sources.push("cgroup");
-			return "docker";
-		}
-		if (/lxc/.test(cgroup)) {
-			sources.push("cgroup");
-			return "lxc";
-		}
+		sources.push("cgroup");
+		if (/libpod/.test(cgroup)) return "podman";
+		if (/crio-/.test(cgroup)) return "crio";
+		if (/cri-containerd|containerd/.test(cgroup)) return "containerd";
+		if (/kubepods/.test(cgroup)) return "containerd"; // modern k8s default
+		if (/docker/.test(cgroup)) return "docker";
+		if (/lxc/.test(cgroup)) return "lxc";
+		sources.pop(); // matched nothing — undo the source push
+	}
+	if (dvirt && SYSTEMD_CONTAINER_TYPES.includes(dvirt)) {
+		sources.push("systemd-detect-virt");
+		return dvirt;
 	}
 	return undefined;
 }
 
-/** Detect a hypervisor/VM vendor from systemd-detect-virt, then DMI, then cpuinfo. */
-function detectHypervisor(sys: SystemAccess, sources: string[]): string | undefined {
-	const out = sys.exec("systemd-detect-virt", [])?.trim();
-	if (out && out !== "none") {
+/** Detect a hypervisor/VM vendor from the pre-fetched dvirt value, then DMI, then cpuinfo. */
+function detectHypervisor(sys: SystemAccess, sources: string[], dvirt: string | undefined): string | undefined {
+	if (dvirt && dvirt !== "none") {
 		// systemd-detect-virt reports container types too; ignore those here.
-		if (!["docker", "podman", "lxc", "lxc-libvirt", "systemd-nspawn"].includes(out)) {
+		if (!SYSTEMD_CONTAINER_TYPES.includes(dvirt)) {
 			sources.push("systemd-detect-virt");
-			return out;
+			return dvirt;
 		}
 	}
 	const vendor = (sys.readFile("/sys/class/dmi/id/sys_vendor") ?? "").trim().toLowerCase();
@@ -53,6 +75,11 @@ function detectHypervisor(sys: SystemAccess, sources: string[]): string | undefi
 		["vmware", "vmware"],
 		["innotek", "virtualbox"],
 		["xen", "xen"],
+		["oracle", "oracle"],
+		["digitalocean", "kvm"],
+		["alibaba", "alibaba"],
+		["nutanix", "nutanix"],
+		["openstack", "kvm"],
 	];
 	for (const [needle, name] of dmiMap) {
 		if (vendor.includes(needle)) {
@@ -70,13 +97,17 @@ function detectHypervisor(sys: SystemAccess, sources: string[]): string | undefi
 
 export function probeIdentity(sys: SystemAccess): IdentityResult {
 	const sources: string[] = [];
-	const container = detectContainer(sys, sources);
-	const hypervisor = detectHypervisor(sys, sources);
+
+	// Exec systemd-detect-virt exactly once and thread the result into helpers.
+	const dvirt = sys.exec("systemd-detect-virt", [])?.trim();
+
+	const container = detectContainer(sys, sources, dvirt);
+	const hypervisor = detectHypervisor(sys, sources, dvirt);
 	const k8s = sys.env("KUBERNETES_SERVICE_HOST") !== undefined || sys.exists("/var/run/secrets/kubernetes.io");
 	if (k8s) sources.push("k8s");
 
 	// A clean "none" from systemd-detect-virt is positive evidence of baremetal.
-	if (!container && !hypervisor && sys.exec("systemd-detect-virt", [])?.trim() === "none") {
+	if (!container && !hypervisor && dvirt === "none") {
 		sources.push("systemd-detect-virt");
 	}
 
