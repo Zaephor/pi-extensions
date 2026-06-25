@@ -64,4 +64,41 @@ describe("probeCapability", () => {
 		expect(r.uid0).toBe(true);
 		expect(r.seccomp).toBe(true);
 	});
+
+	it("requires write access to /dev/kvm, not just read", () => {
+		// present + writable
+		const yes = makeFakeSystem({ exists: ["/dev/kvm"], accessible: ["/dev/kvm"] });
+		expect(probeCapability(yes.sys).kvm).toBe(true);
+		// present but NOT writable (not in accessible list)
+		const no = makeFakeSystem({ exists: ["/dev/kvm"] });
+		expect(probeCapability(no.sys).kvm).toBe(false);
+	});
+
+	it("detects nested virt from kvm_amd with numeric 1", () => {
+		const { sys } = makeFakeSystem({ files: { "/sys/module/kvm_amd/parameters/nested": "1\n" } });
+		expect(probeCapability(sys).nestedVirt).toBe(true);
+	});
+
+	it("detects docker socket via DOCKER_HOST env", () => {
+		const { sys } = makeFakeSystem({ env: { DOCKER_HOST: "unix:///var/run/docker.sock" } });
+		expect(probeCapability(sys).dockerSocket).toBe(true);
+	});
+
+	it("detects podman socket via CONTAINER_HOST env and via the root socket", () => {
+		expect(probeCapability(makeFakeSystem({ env: { CONTAINER_HOST: "unix:///x" } }).sys).podmanSocket).toBe(true);
+		expect(probeCapability(makeFakeSystem({ exists: ["/run/podman/podman.sock"] }).sys).podmanSocket).toBe(true);
+	});
+
+	it("accumulates multiple effective capabilities", () => {
+		// bits 21 (SYS_ADMIN) + 12 (NET_ADMIN) => 0x201000
+		const { sys } = makeFakeSystem({ files: { "/proc/self/status": "CapEff:\t0000000000201000\n" } });
+		const caps = probeCapability(sys).caps;
+		expect(caps).toContain("CAP_SYS_ADMIN");
+		expect(caps).toContain("CAP_NET_ADMIN");
+	});
+
+	it("never throws on a malformed CapEff line", () => {
+		const { sys } = makeFakeSystem({ files: { "/proc/self/status": "CapEff:\tnothex\nSeccomp:\tx\n" } });
+		expect(() => probeCapability(sys)).not.toThrow();
+	});
 });

@@ -1,4 +1,4 @@
-import type { SystemAccess } from "./system.js";
+import { type SystemAccess, W_OK } from "./system.js";
 import type { CapabilityResult } from "./types.js";
 
 /** Linux capability bit positions we care about for spawning workloads. */
@@ -15,7 +15,7 @@ function cpuHasVirt(sys: SystemAccess): boolean {
 }
 
 function kvmUsable(sys: SystemAccess): boolean {
-	return sys.exists("/dev/kvm") && sys.access("/dev/kvm");
+	return sys.exists("/dev/kvm") && sys.access("/dev/kvm", W_OK);
 }
 
 function nestedEnabled(sys: SystemAccess): boolean {

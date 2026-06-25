@@ -2,6 +2,9 @@ import { spawnSync } from "node:child_process";
 import { accessSync, constants, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
+/** Re-exported so probe modules can request write access without importing node:fs. */
+export const W_OK = constants.W_OK;
+
 /**
  * The single seam between probes and the host. Every probe takes a SystemAccess
  * so tests can inject synthetic environments. The real impl never throws — every

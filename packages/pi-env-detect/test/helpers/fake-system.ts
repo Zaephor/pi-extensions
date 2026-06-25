@@ -22,7 +22,7 @@ export function makeFakeSystem(spec: FakeSpec) {
 		exists(path) {
 			return path in (spec.files ?? {}) || (spec.exists ?? []).includes(path);
 		},
-		access(path) {
+		access(path, _mode?: number) {
 			return (spec.accessible ?? []).includes(path);
 		},
 		env(name) {
