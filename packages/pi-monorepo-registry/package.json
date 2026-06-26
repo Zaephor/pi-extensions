@@ -27,10 +27,10 @@
 		"typebox": "*"
 	},
 	"devDependencies": {
-		"@earendil-works/pi-agent-core": "^0.77.0",
-		"@earendil-works/pi-ai": "^0.77.0",
-		"@earendil-works/pi-coding-agent": "^0.77.0",
-		"@earendil-works/pi-tui": "^0.77.0",
+		"@earendil-works/pi-agent-core": "^0.80.2",
+		"@earendil-works/pi-ai": "^0.80.2",
+		"@earendil-works/pi-coding-agent": "^0.80.2",
+		"@earendil-works/pi-tui": "^0.80.2",
 		"typebox": "^1.1.0"
 	},
 	"dependencies": {}

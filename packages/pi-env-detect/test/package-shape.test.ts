@@ -11,7 +11,7 @@ describe("pi-env-detect package shape", () => {
 		expect(pkg.pi.extensions).toContain("./src/index.ts");
 	});
 
-	it("pins pi peer deps at the 0.77 line", () => {
+	it("declares pi peer deps (version-agnostic via '*')", () => {
 		for (const dep of ["@earendil-works/pi-coding-agent", "@earendil-works/pi-ai"]) {
 			expect(pkg.peerDependencies?.[dep]).toBeDefined();
 		}
